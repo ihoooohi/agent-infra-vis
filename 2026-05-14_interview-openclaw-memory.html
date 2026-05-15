@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>面试题 · 为什么不直接用 OpenClaw 的 memory</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .topbar .tag-cat{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:3px 8px;border-radius:3px;letter-spacing:.08em;font-weight:600;background:var(--pink-dim);color:var(--pink);margin-left:auto}
+
+  .container{max-width:1000px;margin:0 auto;padding:28px 24px 80px}
+  .hero{margin-bottom:18px}
+  .hero .qtag{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--pink);background:var(--pink-dim);padding:3px 10px;border-radius:3px;display:inline-block;margin-bottom:8px;font-weight:600}
+  .hero h1{font-size:24px;font-weight:600;margin:0 0 4px;letter-spacing:-.01em;line-height:1.3}
+  .hero .ctx{color:var(--muted);font-size:13px}
+
+  /* Section labels */
+  h2.label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:24px 0 8px;display:flex;align-items:center;gap:8px}
+  h2.label .iconbox{width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+
+  /* Elevator 30s */
+  .elev{background:linear-gradient(135deg,var(--accent-dim) 0,var(--card) 100%);border:2px solid var(--accent);border-radius:10px;padding:18px 22px;margin-bottom:14px}
+  .elev .meta{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--accent);margin-bottom:6px;font-weight:600;letter-spacing:.06em}
+  .elev .q{color:var(--accent);font-size:15px;font-style:italic;line-height:1.65}
+  .elev .q strong{color:var(--text);font-style:normal;font-weight:600}
+
+  /* 3-layer argument */
+  .layers{display:flex;flex-direction:column;gap:8px}
+  .layer{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;border-left:3px solid var(--blue)}
+  .layer.l1{border-left-color:var(--green)}
+  .layer.l2{border-left-color:var(--blue)}
+  .layer.l3{border-left-color:var(--purple)}
+  .layer .lhead{display:flex;gap:10px;align-items:center;margin-bottom:6px}
+  .layer .ln{font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 8px;border-radius:3px;font-weight:600}
+  .layer.l1 .ln{background:var(--green-dim);color:var(--green)}
+  .layer.l2 .ln{background:var(--blue-dim);color:var(--blue)}
+  .layer.l3 .ln{background:var(--purple-dim);color:var(--purple)}
+  .layer .lt{font-weight:600;font-size:14.5px}
+  .layer .lb{font-size:13px;color:var(--text);line-height:1.6}
+  .layer .lb strong{color:var(--accent)}
+  .layer .lb em{color:var(--muted);font-style:normal;font-size:12px}
+
+  /* Bonus points */
+  .bonus-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:720px){.bonus-grid{grid-template-columns:1fr}}
+  .bonus{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-top:3px solid var(--cyan)}
+  .bonus .bnum{font-family:"SF Mono",Menlo,monospace;color:var(--cyan);font-size:11px;font-weight:600;margin-bottom:4px}
+  .bonus .bt{font-weight:600;font-size:13.5px;margin-bottom:4px}
+  .bonus .bd{color:var(--muted);font-size:12px;line-height:1.55}
+  .bonus .bd strong{color:var(--text)}
+
+  /* Follow-up Q&A */
+  .qa-list{display:flex;flex-direction:column;gap:10px}
+  .qa{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0;overflow:hidden}
+  .qa .qrow{background:var(--card-2);padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13.5px;font-weight:500;border-bottom:1px solid var(--border)}
+  .qa .qrow .qm{font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--yellow-dim);color:var(--yellow);padding:3px 8px;border-radius:3px;font-weight:600;flex-shrink:0}
+  .qa .arow{padding:12px 16px;font-size:13px;color:var(--text);line-height:1.6}
+  .qa .arow strong{color:var(--green)}
+  .qa .arow em{color:var(--muted);font-style:normal;font-size:12px}
+
+  /* Don't-say table */
+  .dont-tab{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .drow{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border)}
+  .drow:last-child{border-bottom:none}
+  .drow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .drow > div{padding:10px 16px;font-size:12.5px;line-height:1.55}
+  .drow .bad{color:var(--red);text-decoration:line-through}
+  .drow .good{color:var(--green);border-left:1px solid var(--border)}
+
+  /* Spaced rep card flip-style */
+  .core{background:var(--card-3);border:1px solid var(--accent);border-radius:12px;padding:20px 24px;margin:18px 0}
+  .core .ck{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--accent);margin-bottom:8px;font-weight:700}
+  .core .cb{font-size:16px;color:var(--text);line-height:1.65}
+  .core .cb strong{color:var(--accent)}
+  .core .cb code{font-family:"SF Mono",Menlo,monospace;font-size:14px;background:rgba(0,0,0,.3);padding:1px 6px;border-radius:3px;color:var(--cyan)}
+
+  /* Evidence chip row */
+  .evchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .evchip{font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--card-2);border:1px solid var(--border);border-radius:4px;padding:4px 8px;color:var(--blue)}
+
+  .footer{margin-top:42px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>面试题 · OpenClaw memory</strong></span>
+  <span class="tag-cat">interview</span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <span class="qtag">interview · build vs reuse</span>
+    <h1>面试官：为什么不直接用 OpenClaw 的 memory，要自己手动辛苦搭？</h1>
+    <div class="ctx">关于 Athena memory 系统选型的回答策略 · 30 秒版 / 2 分钟版 / 追问应对 / 雷区</div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--accent-dim);color:var(--accent)">⚡</span>30 秒电梯版 · 直接背</h2>
+
+  <div class="elev">
+    <div class="meta">ELEVATOR · 5 sentences</div>
+    <div class="q">"其实我们<strong>不是没用</strong> OpenClaw —— <strong>PR #1986</strong> 就是把 OpenClaw 的 contextPruning 思想对齐过来。但<strong>借思想 ≠ 抄代码</strong>。<br>OpenClaw 是 TypeScript 单 agent 设计，Athena 是 Python + 13 agent 共享 workspace + Hatchet durable task。直接 reuse memory 模块要么跨语言 RPC，要么改成 Python —— 等于又造了一遍。<br>所以选择'借鉴架构，自己实现'，更 fit Athena 的部署形态。"</div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--blue-dim);color:var(--blue)">📋</span>2 分钟完整版 · 主答</h2>
+
+  <div class="layers">
+    <div class="layer l1">
+      <div class="lhead">
+        <span class="ln">① 语言层</span>
+        <span class="lt">语言与生态不匹配</span>
+      </div>
+      <div class="lb">OpenClaw 是 TS 写的，跟 the-platform-lark 一起服务 Slack/IM platform agent。Athena 主代码是 <strong>Python</strong>（基于 fork 的 nanobot-ai），团队产能在 Python，<strong>Bedrock SDK + VectorDB + Hatchet 全部走 Python</strong>。<br><em>如果直接复用 OpenClaw memory，要么开 sidecar 跨语言通信（增加延迟和故障面），要么改写一遍 —— 改写就等于自建。</em></div>
+    </div>
+
+    <div class="layer l2">
+      <div class="lhead">
+        <span class="ln">② 部署形态</span>
+        <span class="lt">根本不同 · 抽象的根基不同</span>
+      </div>
+      <div class="lb">OpenClaw 设计的是<strong>单 agent 独立 workspace</strong>，memory 跟 hooks / state 紧耦合。Athena 是<strong>13 agent 共享同一份 workspace</strong>（Athena / Echo / skin-07 / skin-06 ...）。<br>OpenClaw 的 GitStore 自动 commit 在 13 process 并发下会 lock 冲突 —— <em>这不是"抄过来能改"，是抽象根基不同。</em></div>
+    </div>
+
+    <div class="layer l3">
+      <div class="lhead">
+        <span class="ln">③ 借鉴而非全弃</span>
+        <span class="lt">Athena 团队对 OpenClaw 是有学习的</span>
+      </div>
+      <div class="lb">实际上：</div>
+      <div class="evchips">
+        <span class="evchip">PR #1986 align contextPruning</span>
+        <span class="evchip">progressive disclosure 思想</span>
+        <span class="evchip">pgvector 整体方向</span>
+      </div>
+      <div class="lb" style="margin-top:8px"><em>但所有这些是把<strong style="color:var(--text)">架构思想搬到 Python</strong>，不是搬代码本身。</em></div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <div class="core">
+    <div class="ck">CLOSE 收尾金句</div>
+    <div class="cb">"所以选择是清晰的 trade-off —— 失去<strong>现成代码的稳定性</strong>，换来<strong>fit 自己部署形态</strong>的灵活性。<br>代价是 <code>17+ memory PR</code>、<code>5 次重写</code>，但每次都解决了具体线上问题（13 agent 并发 / Hatchet checkpoint / DeepSeek 成本等），这些问题在 OpenClaw 原始 context 里压根不会出现。"</div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--cyan-dim);color:var(--cyan)">✨</span>4 个加分点 · 主动抛出去</h2>
+
+  <div class="bonus-grid">
+    <div class="bonus">
+      <div class="bnum">+ 1</div>
+      <div class="bt">三层 fork 视角</div>
+      <div class="bd">"我们也不是从零写。是 <strong>fork 了 nanobot-ai 改造</strong>。OpenClaw → nanobot → Athena 是三层关系，Athena 取最适合 Python 业务侧的。"</div>
+    </div>
+    <div class="bonus">
+      <div class="bnum">+ 2</div>
+      <div class="bt">失败案例诚实</div>
+      <div class="bd">"nanobot 框架代码里有 Consolidator / Dream / GitStore，我们试过但发现<strong>共享 workspace 跑不起来</strong> → 写了 hooks/compaction.py 替代。这恰恰说明直接 reuse 别人的 memory 抽象在我们场景下行不通。"</div>
+    </div>
+    <div class="bonus">
+      <div class="bnum">+ 3</div>
+      <div class="bt">成本数据</div>
+      <div class="bd">"compaction 5 阶段让 <strong>80% 流量走纯字符串（零 LLM 成本）</strong>，只有 85% 阈值才调 DeepSeek。如果直接用 OpenClaw 的 LLM 摘要，每条消息都烧钱。"</div>
+    </div>
+    <div class="bonus">
+      <div class="bnum">+ 4</div>
+      <div class="bt">Product fit</div>
+      <div class="bd">"Athena 是<strong>给团队用的</strong>，需要人工 review 关键决策（Auto-Pilot Step 3/4），需要共享知识库做组织记忆。OpenClaw 是<strong>个人 chat agent 模式</strong>，'agent 自动管所有'反而违反我们的产品哲学。"</div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--yellow-dim);color:var(--yellow)">❓</span>3 个常见追问 · 应对模板</h2>
+
+  <div class="qa-list">
+    <div class="qa">
+      <div class="qrow"><span class="qm">Q1</span>那为什么不直接 fork OpenClaw 改成 Python？</div>
+      <div class="arow"><strong>"fork TS 改 Python 跟从头写没区别。"</strong><br>fork nanobot-ai 至少保留 Python 生态（Bedrock SDK / loguru / httpx 都直接用），<strong style="color:var(--text)">fork OpenClaw 要先把 TS 改 Python 才能开始改业务，工作量翻倍。</strong></div>
+    </div>
+    <div class="qa">
+      <div class="qrow"><span class="qm">Q2</span>自建会不会重复 OpenClaw 已踩过的坑？</div>
+      <div class="arow"><strong>"会，确实有。"</strong> 所以 <em>PR #1986 那种主动 'align with OpenClaw' 的 PR 就是定期复盘 OpenClaw 学到了什么，我们要不要跟。</em><br>这是<strong style="color:var(--text)">主动同步思想</strong>而不是被动用代码。</div>
+    </div>
+    <div class="qa">
+      <div class="qrow"><span class="qm">Q3</span>如果重来一次，你会选 OpenClaw 还是自建？</div>
+      <div class="arow"><strong>"依然自建</strong> —— 因为 Athena 的产品形态（13 agent 共享 + Hatchet durable + IM platform 团队群）跟 OpenClaw 设计场景差距太大。<br>但我会<strong style="color:var(--text)">更早做架构对齐文档</strong>（哪些借鉴、哪些不借鉴、为什么），少走一些走弯路的 PR。"</div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--red-dim);color:var(--red)">🚫</span>雷区 · 这样说会扣分</h2>
+
+  <div class="dont-tab">
+    <div class="drow head"><div>❌ 不要这样说</div><div>✅ 改成这样</div></div>
+    <div class="drow">
+      <div class="bad">"OpenClaw memory 不好 / 有 bug"</div>
+      <div class="good">"OpenClaw 的设计 fit <strong>它自己的场景</strong>，不 fit 我们的"</div>
+    </div>
+    <div class="drow">
+      <div class="bad">"我们就是想自己造"</div>
+      <div class="good">"技术选型是 <strong>build vs reuse</strong> 的 trade-off，我们选了 build"</div>
+    </div>
+    <div class="drow">
+      <div class="bad">"fork 是因为团队习惯 Python"</div>
+      <div class="good">"fork 是因为业务方向跟上游分歧 —— <strong>团队代理 vs 个人助理</strong>"</div>
+    </div>
+  </div>
+
+  <!-- =========================================================== -->
+  <h2 class="label"><span class="iconbox" style="background:var(--purple-dim);color:var(--purple)">🎯</span>关键 anchor · 让面试官记住你</h2>
+
+  <div class="core" style="background:var(--purple-dim);border-color:var(--purple)">
+    <div class="ck" style="color:var(--purple)">PUNCH LINE</div>
+    <div class="cb"><strong style="color:var(--purple)">"借思想 ≠ 抄代码"</strong> · <strong style="color:var(--purple)">"fork 不是抛弃，是分叉演化"</strong> · <strong style="color:var(--purple)">"代码反映当年想做什么，线上反映最后做出了什么"</strong></div>
+  </div>
+
+  <div class="footer">
+    背景资料 · 见同合集 02 篇 Memory 系统（三段式）+ 11 篇 为什么线上和代码不一样<br>
+    准备日期 · 2026-05-14
+  </div>
+
+</div>
+</body>
+</html>

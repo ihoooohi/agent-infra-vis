@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skills 动态加载系统 · SKILL.md 是 agent 的"工具说明书"</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+
+  /* Two sources */
+  .sources{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.sources{grid-template-columns:1fr}}
+  .source{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;border-top:3px solid var(--purple)}
+  .source.workspace{border-top-color:var(--cyan)}
+  .source .stitle{font-weight:600;font-size:15px;margin-bottom:2px}
+  .source.workspace .stitle{color:var(--cyan)}
+  .source .stitle.builtin{color:var(--purple)}
+  .source .spath{font-family:"SF Mono",Menlo,monospace;color:var(--muted);font-size:11.5px;margin-bottom:10px}
+  .source ul{margin:0;padding-left:20px;font-size:13px;color:var(--muted);line-height:1.7}
+
+  /* Skill grid */
+  .skill-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}
+  .skill{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .skill .sname{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .skill .emoji{font-size:18px}
+  .skill .sdesc{color:var(--muted);font-size:11.5px;line-height:1.55}
+  .skill .sreq{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--yellow);background:var(--yellow-dim);padding:2px 6px;border-radius:3px;display:inline-block;margin-top:4px}
+
+  /* Flow */
+  .vflow{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .vstep{display:grid;grid-template-columns:32px 1fr auto;gap:12px;padding:10px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:6px;font-size:13px}
+  .vstep .n{background:var(--card-3);color:var(--muted);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .vstep.warn .n{background:var(--yellow);color:var(--bg)}
+  .vstep.green .n{background:var(--green);color:var(--bg)}
+  .vstep .body strong{color:var(--text)}
+  .vstep .body .h{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .vstep .tag{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;background:var(--card-3);color:var(--muted);padding:2px 6px;border-radius:3px}
+
+  /* Modes */
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.modes{grid-template-columns:1fr}}
+  .mode{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .mode.always{border-top:3px solid var(--accent)}
+  .mode.progressive{border-top:3px solid var(--blue)}
+  .mode .mtitle{font-weight:600;font-size:15px;margin-bottom:4px}
+  .mode.always .mtitle{color:var(--accent)}
+  .mode.progressive .mtitle{color:var(--blue)}
+  .mode .mhow{font-size:13px;color:var(--text);margin-bottom:8px}
+  .mode .mexample{background:var(--card-2);border-radius:6px;padding:10px 12px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;color:var(--muted);margin-top:8px;white-space:pre-wrap}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"线上实测 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  /* Skin matrix */
+  .skin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-top:8px}
+  .skin-chip{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;color:var(--text);text-align:center}
+
+  /* XML preview */
+  .xml-preview{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--text);line-height:1.6;white-space:pre-wrap;overflow-x:auto}
+  .xml-preview .tag{color:var(--blue)}
+  .xml-preview .attr{color:var(--accent)}
+  .xml-preview .val{color:var(--green)}
+  .xml-preview .com{color:var(--muted)}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>03 · Skills 系统</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>03 · Skills 动态加载系统</h1>
+    <div class="sub">SKILL.md 是 agent 的"工具说明书"—— 不是代码，是写给 LLM 看的</div>
+  </div>
+
+  <div class="lead">
+    Skill ≠ Tool。<strong>Tool</strong> 是 Python 函数（agent 能调用），<strong>Skill</strong> 是 Markdown 文档（教 agent 如何用工具完成某类任务）。每个 skill 就是一个目录 + 一份 <code>SKILL.md</code>，带 YAML frontmatter + 自然语言说明。<br>
+    Athena / Echo / 14 个 skin 共享一套 <strong>9 个 builtin skill</strong>，每个 skin 也可以在自己 workspace 里再装专属 skill 覆盖 / 扩展。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>Skill vs Tool · 别搞混</h2>
+
+  <div class="modes">
+    <div class="mode progressive">
+      <div class="mtitle">Tool</div>
+      <div class="mhow">Python 函数注册到 ToolRegistry。LLM 用 <code>tool_use</code> 调用，参数 schema 由 Tool 类定义。</div>
+      <div class="mexample">@register_tool
+class GrepTool(Tool):
+    name = "grep"
+    schema = {...}
+    async def execute(self, args):
+        ...</div>
+    </div>
+    <div class="mode always">
+      <div class="mtitle">Skill</div>
+      <div class="mhow">Markdown 文档，frontmatter 配元数据。塞进 system prompt（或被 agent 主动读取），告诉 agent "在 X 场景下怎么用 grep / gh / brew"。</div>
+      <div class="mexample"># SKILL.md
+---
+name: github
+description: ...
+metadata: {"nanobot":{...}}
+---
+# 怎么用 gh CLI 查 PR
+...</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>简单类比：</strong> Tool 是<strong>螺丝刀</strong>，Skill 是<strong>说明书</strong>。LLM 拿到螺丝刀也能瞎拧，但有说明书就知道"拧这个螺丝要先松那个垫片"。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>两种 skill 源 · workspace 覆盖 builtin</h2>
+
+  <p>SkillsLoader 找 skill 时按固定顺序，<strong>workspace 优先</strong> —— 同名 skill 可以"覆盖"框架版本。</p>
+
+  <div class="sources">
+    <div class="source workspace">
+      <div class="stitle">workspace skills</div>
+      <div class="spath">{workspace}/skills/{name}/SKILL.md</div>
+      <ul>
+        <li>每个 agent 自己的 skin 目录里</li>
+        <li>优先级<strong style="color:var(--text)">最高</strong>（同名覆盖 builtin）</li>
+        <li>可以放 <code>_archived/</code> 子目录"封存"—— 不主动加载</li>
+        <li><strong style="color:var(--text)">实测：</strong>Athena / Echo / 14 skin 目前都没自定义 skill</li>
+      </ul>
+    </div>
+    <div class="source">
+      <div class="stitle builtin">builtin skills</div>
+      <div class="spath">nanobot/skills/{name}/SKILL.md</div>
+      <ul>
+        <li>nanobot-ai 框架自带的 9 个</li>
+        <li>所有 agent <strong style="color:var(--text)">默认共享</strong></li>
+        <li>改它要发 nanobot-ai 新版 + 重建镜像</li>
+        <li>已实测：13 fleet agent 全都依赖这套</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="evidence">
+$ ls /home/ubuntu/agent-skins-data/prod/skins/
+fin-bot  skin-05  skin-06  skin-11  skin-08  skin-01
+skin-04  skin-12  skin-09  skin-10  skin-03  skin-03b
+skin-07  skin-02
+
+$ ls /home/ubuntu/agent-skins-data/prod/skins/skin-07/
+AGENTS.md  IDENTITY.md  SOUL.md  USER.md
+（注意：没有 skills/ 目录 — skin-07 完全用 builtin）
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>9 个 builtin skill 全清单</h2>
+
+  <p>把 <code>nanobot/skills/</code> 下每个 skill 摆出来，给 agent 的 "能力清单"：</p>
+
+  <div class="skill-grid">
+    <div class="skill">
+      <div class="sname"><span class="emoji">🐙</span>github</div>
+      <div class="sdesc">用 <code>gh</code> CLI 查 PR / Issues / CI runs / 调 API</div>
+      <div class="sreq">requires: gh</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">🌤️</span>weather</div>
+      <div class="sdesc">用 wttr.in + Open-Meteo 查天气，无需 API key</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">📝</span>summarize</div>
+      <div class="sdesc">摘要 URL / 文件 / YouTube 视频</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">🖥️</span>tmux</div>
+      <div class="sdesc">远程控制 tmux session，跑长时间命令</div>
+      <div class="sreq">requires: tmux</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">🛠️</span>clawhub</div>
+      <div class="sdesc">搜索 / 安装来自 ClawHub registry 的第三方 skill</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">✨</span>skill-creator</div>
+      <div class="sdesc">创建新 skill（教 agent 怎么写 SKILL.md）</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">🧠</span>memory</div>
+      <div class="sdesc">记忆操作（save / search / forget），底层接 pgvector</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">⏰</span>cron</div>
+      <div class="sdesc">配定时任务（每日 X 点跑 Y）</div>
+    </div>
+    <div class="skill">
+      <div class="sname"><span class="emoji">🗺️</span>system-map</div>
+      <div class="sdesc">用 4 个视图理解陌生 codebase</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>credit：</strong> README 明确说"These skills are adapted from OpenClaw's skill system"—— 格式和元数据结构沿用 OpenClaw 约定，保持兼容。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>SKILL.md 格式 · 拆 github 这一份</h2>
+
+  <pre><span class="com">---</span>
+<span class="key">name:</span> github
+<span class="key">description:</span> <span class="str">"Interact with GitHub using the `gh` CLI..."</span>
+<span class="key">metadata:</span> {<span class="str">"nanobot"</span>: {
+    <span class="str">"emoji"</span>: <span class="str">"🐙"</span>,
+    <span class="str">"requires"</span>: {<span class="str">"bins"</span>: [<span class="str">"gh"</span>]},
+    <span class="str">"install"</span>: [
+      {<span class="str">"id"</span>:<span class="str">"brew"</span>,<span class="str">"kind"</span>:<span class="str">"brew"</span>,<span class="str">"formula"</span>:<span class="str">"gh"</span>,<span class="str">"bins"</span>:[<span class="str">"gh"</span>]},
+      {<span class="str">"id"</span>:<span class="str">"apt"</span>,<span class="str">"kind"</span>:<span class="str">"apt"</span>,<span class="str">"package"</span>:<span class="str">"gh"</span>}
+    ]
+}}
+<span class="com">---</span>
+
+# GitHub Skill
+Use the `gh` CLI to interact with GitHub...
+
+## Pull Requests
+Check CI status on a PR:
+```bash
+gh pr checks 55 --repo owner/repo
+```
+...</pre>
+
+  <p>frontmatter 的关键字段：</p>
+
+  <table style="width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:6px;overflow:hidden">
+    <tr style="background:var(--card-2)"><th style="text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.08em">字段</th><th style="text-align:left;padding:10px 14px;font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.08em">作用</th></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">name</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">skill 标识，需匹配目录名</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">description</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">一句话总结，给 agent 看到清单时决定要不要 load</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">metadata.nanobot.requires.bins</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">需要哪些 CLI 工具（如 <code>gh</code>），运行时 <code>shutil.which()</code> 检查</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">metadata.nanobot.requires.env</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">需要哪些环境变量（如 <code>GITHUB_TOKEN</code>），<code>os.environ.get()</code> 检查</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">metadata.nanobot.install</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">安装指引（按 brew / apt / pip 分），可被前端用来一键装</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">metadata.nanobot.always</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">true 则<strong>每次对话都自动注入</strong>到 system prompt</td></tr>
+    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 14px;font-family:'SF Mono',monospace;color:var(--accent);font-size:12px">metadata.nanobot.emoji</td><td style="padding:10px 14px;font-size:13px;color:var(--muted)">UI 显示用</td></tr>
+  </table>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>两种加载模式 · always vs 渐进式</h2>
+
+  <div class="modes">
+    <div class="mode always">
+      <div class="mtitle">Always 模式</div>
+      <div class="mhow">SKILL.md 标 <code>always: true</code>。<strong>每次 system prompt 构造时整段注入</strong>。<br>适合：每对话都用得到的核心能力（比如 Athena 的"如何用 IM 卡片"）。</div>
+      <div class="mexample">build_system_prompt():
+  parts = [identity, bootstrap, memory]
+  always_skills = skills.get_always_skills()
+  if always_skills:
+    parts.append(skills.load_skills_for_context(always_skills))
+  parts.append(skills_summary)   # 其他 skill 只列摘要
+  return "\n\n---\n\n".join(parts)</div>
+    </div>
+    <div class="mode progressive">
+      <div class="mtitle">渐进式加载</div>
+      <div class="mhow">默认只把 skill 名字 + 描述放进 system prompt（XML 列表）。<strong>agent 要用某个时，用 read_file 主动读 SKILL.md</strong>。<br>适合：长尾能力，省 context token。</div>
+      <div class="mexample">&lt;skills&gt;
+  &lt;skill available="true"&gt;
+    &lt;name&gt;github&lt;/name&gt;
+    &lt;description&gt;Interact with GitHub...&lt;/description&gt;
+    &lt;location&gt;.../github/SKILL.md&lt;/location&gt;
+  &lt;/skill&gt;
+&lt;/skills&gt;</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>渐进式加载的省钱算盘：</strong> 9 个 skill 全文塞进每个 prompt = 数千 token 浪费。只塞清单 = 几百 token。当 agent 真要用 github 时它会自己 <code>read_file(.../github/SKILL.md)</code> —— 按需付费。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>加载流程 · 一次完整 system prompt 构造</h2>
+
+  <div class="vflow">
+    <div class="vstep">
+      <div class="n">1</div>
+      <div class="body"><strong>list_skills()</strong><div class="h">遍历 workspace/skills/ 和 builtin skills/，每个找 SKILL.md。<strong>workspace 优先</strong>，同名 skip builtin</div></div>
+      <div class="tag">skills.py</div>
+    </div>
+    <div class="vstep warn">
+      <div class="n">2</div>
+      <div class="body"><strong>_check_requirements()</strong><div class="h">每个 skill 的 frontmatter 解析 requires.bins / env，缺哪样就标 <code>available="false"</code></div></div>
+    </div>
+    <div class="vstep">
+      <div class="n">3</div>
+      <div class="body"><strong>get_always_skills()</strong><div class="h">过滤出 always=true 且 available 的，准备整块注入</div></div>
+    </div>
+    <div class="vstep green">
+      <div class="n">4</div>
+      <div class="body"><strong>load_skills_for_context(always_names)</strong><div class="h">逐个读 SKILL.md，stripped frontmatter，拼成 "### Skill: name\n\n{body}"</div></div>
+    </div>
+    <div class="vstep">
+      <div class="n">5</div>
+      <div class="body"><strong>build_skills_summary()</strong><div class="h">所有 skill（含不可用 / archived）生成 XML 摘要 —— 不可用的标记缺什么 CLI / env</div></div>
+    </div>
+    <div class="vstep green">
+      <div class="n">6</div>
+      <div class="body"><strong>拼进 system prompt</strong><div class="h">identity + bootstrap + memory + always skills (full) + skills summary (list)</div></div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>skills_summary 长啥样 · XML 给 LLM 看</h2>
+
+  <p>这是 agent 看到的"能力清单"，LLM 会根据 description 决定要不要去深读：</p>
+
+  <div class="xml-preview"><span class="tag">&lt;skills&gt;</span>
+  <span class="tag">&lt;skill</span> <span class="attr">available</span>=<span class="val">"true"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;name&gt;</span>github<span class="tag">&lt;/name&gt;</span>
+    <span class="tag">&lt;description&gt;</span>Interact with GitHub using `gh` CLI...<span class="tag">&lt;/description&gt;</span>
+    <span class="tag">&lt;location&gt;</span>/usr/local/lib/.../skills/github/SKILL.md<span class="tag">&lt;/location&gt;</span>
+  <span class="tag">&lt;/skill&gt;</span>
+  <span class="tag">&lt;skill</span> <span class="attr">available</span>=<span class="val">"false"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;name&gt;</span>tmux<span class="tag">&lt;/name&gt;</span>
+    <span class="tag">&lt;description&gt;</span>Remote-control tmux sessions<span class="tag">&lt;/description&gt;</span>
+    <span class="tag">&lt;location&gt;</span>.../skills/tmux/SKILL.md<span class="tag">&lt;/location&gt;</span>
+    <span class="tag">&lt;requires&gt;</span>CLI: tmux<span class="tag">&lt;/requires&gt;</span>
+  <span class="tag">&lt;/skill&gt;</span>
+  <span class="com">&lt;!-- archived: name-only, read SKILL.md to reactivate --&gt;</span>
+  <span class="tag">&lt;skill</span> <span class="attr">archived</span>=<span class="val">"true"</span><span class="tag">&gt;&lt;name&gt;</span>old-experiment<span class="tag">&lt;/name&gt;&lt;/skill&gt;</span>
+<span class="tag">&lt;/skills&gt;</span></div>
+
+  <div class="callout warn">
+    <strong>archived 的 skill 只列名字 · 不占 token：</strong> 放在 <code>workspace/skills/_archived/</code> 子目录的 skill 只输出 name，不读取 description / location / 检查 requires。agent 想用得自己手动 read SKILL.md 把它"激活"。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>实测 · 14 个 skin 都用啥 skill</h2>
+
+  <div class="evidence">
+线上 skin 目录（host: <EC2-A>）：
+fin-bot · skin-05 · skin-06 · skin-11 · skin-08 · skin-01
+skin-04 · skin-12 · skin-09 · skin-10 · skin-03 · skin-03b
+skin-07 · skin-02
+（共 14 个 skin · 加上 Athena 主 = 15 个角色，fin-bot 是 Athena 的金融分支）
+  </div>
+
+  <p>每个 skin 目录里只有 4 个文件 —— <strong>没有 workspace skills/</strong>。也就是说 14 个 skin 全靠 builtin 9 个 skill：</p>
+
+  <div class="skin-grid">
+    <div class="skin-chip">AGENTS.md</div>
+    <div class="skin-chip">IDENTITY.md</div>
+    <div class="skin-chip">SOUL.md</div>
+    <div class="skin-chip">USER.md</div>
+  </div>
+
+  <div class="callout warn">
+    <strong>架构观察：</strong> Skill 设计上支持 per-agent 定制（workspace 优先），但实际生产里<strong>没有 skin 用到这个能力</strong>。改一个 skill 影响所有 agent —— 这是双刃剑：统一维护方便，但任何 skill 错误都全员中招。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>SkillUsageTracker · 记账</h2>
+
+  <p>每次有 always skill 被注入到 prompt，<code>SkillUsageTracker.record_batch(skills, "always", session_key)</code> 会记一笔。这个数据后续做<strong>"哪些 skill 真的常被用 / 哪些没人理"</strong>的统计 —— 删冗余 skill 的依据。</p>
+
+  <div class="callout">
+    <strong>反馈环：</strong> always skill 注入 → 记账 · 渐进式 skill 被 read_file → 统计 · pgvector memory <code>surfaced_count</code> 也记账。三套机制都在收集"什么真有用"的信号，用于持续精简 context。
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/nanobot/agent/skills.py</code> + <code style="background:transparent;color:var(--muted)">auto-agent/nanobot/skills/</code>（9 个 builtin）<br>
+    实测 · /home/ubuntu/agent-skins-data/prod/skins/ 下 14 个 skin · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

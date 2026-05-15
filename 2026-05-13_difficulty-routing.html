@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>难度路由 + 模型分级 · 一天几千条消息怎么省钱</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  /* Big router diagram */
+  .router{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px}
+  .layer-block{background:var(--card-2);border-radius:10px;padding:16px 18px;margin-bottom:8px;position:relative}
+  .layer-block.l1{border-left:3px solid var(--green)}
+  .layer-block.l2{border-left:3px solid var(--blue)}
+  .layer-block.l3{border-left:3px solid var(--yellow)}
+  .lb-head{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+  .lb-num{font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--card-3);color:var(--muted);padding:3px 8px;border-radius:4px}
+  .lb-name{font-weight:600;font-size:15px}
+  .layer-block.l1 .lb-name{color:var(--green)}
+  .layer-block.l2 .lb-name{color:var(--blue)}
+  .layer-block.l3 .lb-name{color:var(--yellow)}
+  .lb-cost{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--muted);margin-left:auto}
+  .lb-body{font-size:13px;color:var(--muted);line-height:1.55}
+  .lb-body strong{color:var(--text)}
+  .lb-arrow{text-align:center;color:var(--muted);font-size:18px;margin:4px 0}
+  .lb-arrow .miss{color:var(--accent);font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--accent-dim);padding:2px 8px;border-radius:3px;margin:0 4px}
+
+  /* Category map */
+  .cat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:12px}
+  .cat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-top:3px solid var(--green)}
+  .cat.creative{border-top-color:var(--cyan)}
+  .cat.coding{border-top-color:var(--pink)}
+  .cat.analysis{border-top-color:var(--purple)}
+  .cat.simple{border-top-color:var(--blue)}
+  .cat .cn{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:13px;margin-bottom:4px}
+  .cat.greeting .cn{color:var(--green)}
+  .cat.simple .cn{color:var(--blue)}
+  .cat.creative .cn{color:var(--cyan)}
+  .cat.coding .cn{color:var(--pink)}
+  .cat.analysis .cn{color:var(--purple)}
+  .cat .cd{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .cat .cm{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--accent);margin-top:6px;display:flex;justify-content:space-between}
+
+  /* Rules table */
+  .rules-table{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .rrow{display:grid;grid-template-columns:1fr 160px;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
+  .rrow:last-child{border-bottom:none}
+  .rrow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .rrow .cond{font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--text)}
+  .rrow .out{font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--card-2);padding:3px 10px;border-radius:4px;text-align:center;font-weight:600}
+  .out.greeting{color:var(--green)}
+  .out.simple{color:var(--blue)}
+  .out.creative{color:var(--cyan)}
+  .out.coding{color:var(--pink)}
+  .out.analysis{color:var(--purple)}
+
+  /* Heuristic scoring */
+  .score-grid{display:grid;grid-template-columns:1fr 80px;gap:10px}
+  .score-row{display:grid;grid-template-columns:1fr 80px;gap:10px;padding:8px 12px;background:var(--card-2);border-radius:4px;margin-bottom:3px;font-size:13px}
+  .score-row .cond{color:var(--text)}
+  .score-row .score{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-weight:600;text-align:right}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"代码事实 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>04 · 难度路由 + 模型分级</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>04 · 难度路由 + 模型分级</h1>
+    <div class="sub">为啥 Athena 一天烧不爆 — 把 80% 流量挡在便宜模型这边</div>
+  </div>
+
+  <div class="lead">
+    Opus 比 Sonnet 贵约 <strong>5×</strong>。Athena 一天处理几千条 IM platform 消息，如果每条都 Opus，账单会爆。所以加了个 <strong>3 层路由</strong>：硬规则 → Bedrock <strong>Nova Micro 判官</strong>（~$0.000007/call）→ regex 评分兜底。<br>
+    最终输出 5 个类别 → 映射到 1-5 难度 → 选 Sonnet 或 Opus。
+  </div>
+
+  <div class="callout warn">
+    <strong>命名坑：</strong> 文件叫 <code>gemini_judge.py</code>，但代码里 <code>JUDGE_MODEL = "amazon.nova-micro-v1:0"</code> —— 历史命名遗留，<strong>实际用的不是 Gemini，是 Bedrock Nova Micro</strong>。复用主 Bedrock 凭证，不用额外 API key。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>三层路由总览</h2>
+
+  <div class="router">
+    <div class="layer-block l1">
+      <div class="lb-head">
+        <span class="lb-num">Layer 1</span>
+        <span class="lb-name">硬规则 · hard_rule_route()</span>
+        <span class="lb-cost">~0ms · $0</span>
+      </div>
+      <div class="lb-body">
+        几个 if-else，<strong>命中就立刻返回</strong>，不调任何 LLM。覆盖 30-50% 的"明显能判"的消息。
+      </div>
+    </div>
+
+    <div class="lb-arrow">↓ <span class="miss">return None (没命中)</span></div>
+
+    <div class="layer-block l2">
+      <div class="lb-head">
+        <span class="lb-num">Layer 2</span>
+        <span class="lb-name">Nova Micro 判官 · judge_difficulty()</span>
+        <span class="lb-cost">&lt;1s · $0.000007/call</span>
+      </div>
+      <div class="lb-body">
+        Bedrock <code>amazon.nova-micro-v1:0</code> 模型当裁判，给它一个分类 prompt。便宜到可以每条消息都跑一次。<br>
+        feature flag <code>SMART_ROUTING_V2=true</code>（默认开）。设 false 就跳过这层直接 V1。
+      </div>
+    </div>
+
+    <div class="lb-arrow">↓ <span class="miss">except / timeout</span></div>
+
+    <div class="layer-block l3">
+      <div class="lb-head">
+        <span class="lb-num">Layer 3</span>
+        <span class="lb-name">V1 启发式 · _v1_heuristic()</span>
+        <span class="lb-cost">~0ms · $0</span>
+      </div>
+      <div class="lb-body">
+        老版本 regex 评分逻辑，<strong>绝不挂</strong>。Layer 2 网络故障 / Nova Micro 抽风 / 模型返回非法分类时兜底。
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>5 个类别 · 难度映射</h2>
+
+  <p>三层不管哪层胜出，最终输出都规约到这 5 类，再映射到难度 → 模型：</p>
+
+  <div class="cat-grid">
+    <div class="cat greeting">
+      <div class="cn">GREETING</div>
+      <div class="cd">招呼 / 确认 / 致谢（"hi" "ok" "谢谢" "好的"）</div>
+      <div class="cm"><span>难度 1</span><span>Sonnet</span></div>
+    </div>
+    <div class="cat simple">
+      <div class="cn">SIMPLE</div>
+      <div class="cd">事实查询、短答、翻译、状态检查</div>
+      <div class="cm"><span>难度 2</span><span>Sonnet</span></div>
+    </div>
+    <div class="cat creative">
+      <div class="cn">CREATIVE</div>
+      <div class="cd">长文写作、文案、内容创作、brainstorm</div>
+      <div class="cm"><span>难度 3</span><span>Sonnet</span></div>
+    </div>
+    <div class="cat coding">
+      <div class="cn">CODING</div>
+      <div class="cd">写 / 改 / 修 / 构建代码 / UI / DevOps</div>
+      <div class="cm"><span>难度 4</span><span>Opus</span></div>
+    </div>
+    <div class="cat analysis">
+      <div class="cn">ANALYSIS</div>
+      <div class="cd">数据分析、调研、对比、多步推理、深度思考</div>
+      <div class="cm"><span>难度 4</span><span>Opus</span></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>5 个类别但只有 4 个难度：</strong> CODING 和 ANALYSIS 都映到 4，意思是"都要 Opus，但内部统计可以分开看"。同时<strong>没有难度 5</strong> —— 留作未来更复杂模型的扩展位。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>Layer 1 · 硬规则在判什么</h2>
+
+  <p>难得清晰的代码 —— 全是确定性 if-else，<code>hard_rule_route(text, has_image, has_file)</code>：</p>
+
+  <div class="rules-table">
+    <div class="rrow head"><div>条件</div><div>结果</div></div>
+    <div class="rrow"><div class="cond">_is_pure_greeting(text)<br><span style="color:var(--muted);font-size:11.5px">"hi"/"好的"/"收到" + 可选标点</span></div><div class="out greeting">GREETING</div></div>
+    <div class="rrow"><div class="cond">has_image == True<br><span style="color:var(--muted);font-size:11.5px">带图片附件 → 多半是 UI / design 任务</span></div><div class="out coding">CODING</div></div>
+    <div class="rrow"><div class="cond">"```" in text and _ERROR_RE.search(text)<br><span style="color:var(--muted);font-size:11.5px">代码块 + Traceback/Error/Exception → debug</span></div><div class="out coding">CODING</div></div>
+    <div class="rrow"><div class="cond">_ERROR_RE.search(text)<br><span style="color:var(--muted);font-size:11.5px">只有错误堆栈（没代码块）</span></div><div class="out analysis">ANALYSIS</div></div>
+    <div class="rrow"><div class="cond">"```" in text<br><span style="color:var(--muted);font-size:11.5px">只有代码块（没错误）</span></div><div class="out coding">CODING</div></div>
+    <div class="rrow"><div class="cond"><span style="color:var(--muted)">以上都没命中</span></div><div class="out" style="color:var(--muted)">None → 下层</div></div>
+  </div>
+
+  <div class="callout">
+    <strong>has_file 故意不在硬规则里：</strong> 文件可能是 .py 也可能是 .csv，硬判会出错。<strong>下沉到 Nova Micro 判官</strong>，让 LLM 看内容决定 CODING 还是 ANALYSIS。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>Layer 2 · Nova Micro 判官 prompt</h2>
+
+  <p>核心 prompt（截选关键部分）：</p>
+
+  <pre><span class="com"># JUDGE_PROMPT</span>
+You are a request classifier. Classify the user's request into exactly ONE category.
+
+Categories:
+- GREETING: trivial greeting, acknowledgment, thanks, affirmation
+- SIMPLE: factual lookup, short answer, quick question, translation, status check
+- CODING: write/edit/debug/review code, build UI, modify files, DevOps
+- ANALYSIS: data analysis, research, investigation, multi-step reasoning, comparison
+- CREATIVE: long-form writing, copywriting, content creation, brainstorming
+
+Decision rules (IMPORTANT — follow strictly):
+1. If user asks to WRITE, EDIT, FIX, BUILD, MODIFY code/files/UI → CODING
+2. If user asks to ANALYZE, RESEARCH, INVESTIGATE, COMPARE, PLAN → ANALYSIS
+3. ... (more rules)
+
+Chinese examples:
+- <span class="str">"帮我改一下这个页面"</span> → CODING
+- <span class="str">"帮我查一下这个数据"</span> → SIMPLE
+- <span class="str">"分析一下竞品策略"</span> → ANALYSIS
+- <span class="str">"写个脚本"</span> → CODING
+
+Context: {context}
+User message: {text}
+
+Reply with ONLY the category name (one word, uppercase). Nothing else.</pre>
+
+  <p>判官的几个设计要点：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">中英文混合 examples</strong> —— Athena 用户群体中文为主，明确举中文例子比纯英文准</li>
+    <li><strong style="color:var(--text)">"Short ≠ simple"</strong> rule —— 短消息也可能是 CODING（"帮我改一下" 才 6 字符）</li>
+    <li><strong style="color:var(--text)">用户显式要 opus → ANALYSIS</strong>（"用 opus 帮我…"）—— 尊重用户升级意图</li>
+    <li><strong style="color:var(--text)">text 截断到 1500 字符</strong> —— 长消息不全喂给判官，省 token</li>
+    <li><strong style="color:var(--text)">VALID_CATEGORIES 校验</strong> —— 判官返回非法分类时，调用方丢弃，走 V1</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>Layer 3 · V1 启发式评分</h2>
+
+  <p>Nova Micro 挂了或返回非法时，<code>_v1_heuristic()</code> 兜底。纯 regex 评分，每条规则加分：</p>
+
+  <div class="score-grid">
+    <div class="score-row"><div class="cond">_is_pure_greeting → 立即返回</div><div class="score">GREETING</div></div>
+    <div class="score-row"><div class="cond">eff_length &gt; 80（CJK 加权）</div><div class="score">+3</div></div>
+    <div class="score-row"><div class="cond">eff_length 30-80</div><div class="score">+2</div></div>
+    <div class="score-row"><div class="cond">eff_length 6-30</div><div class="score">+1</div></div>
+    <div class="score-row"><div class="cond">每个 complex 关键词（"分析"/"对比"/"总结"/...）</div><div class="score">+2 (cap 4)</div></div>
+    <div class="score-row"><div class="cond">代码块 + 错误堆栈</div><div class="score">+4</div></div>
+    <div class="score-row"><div class="cond">错误堆栈（无代码块）</div><div class="score">+4</div></div>
+    <div class="score-row"><div class="cond">代码块（无错误）</div><div class="score">+2</div></div>
+    <div class="score-row"><div class="cond">≥3 个问号</div><div class="score">+2</div></div>
+    <div class="score-row"><div class="cond">2 个问号</div><div class="score">+1</div></div>
+    <div class="score-row"><div class="cond">&gt; 10 行（粘贴内容 / 结构化）</div><div class="score">+1</div></div>
+    <div class="score-row"><div class="cond">≥2 复杂关键词且 eff_length &gt; 15</div><div class="score">+1</div></div>
+    <div class="score-row"><div class="cond">请求动词（帮/查/改/写）但 score &lt; 2</div><div class="score">提到 2</div></div>
+    <div class="score-row"><div class="cond">含 coding 动词（"写代码"/"改页面"/"code"/...）</div><div class="score">直接 CODING</div></div>
+  </div>
+
+  <p style="margin-top:14px">最终 score → 类别映射：</p>
+
+  <div class="rules-table">
+    <div class="rrow"><div class="cond">score ≤ 1</div><div class="out simple">SIMPLE</div></div>
+    <div class="rrow"><div class="cond">score == 2</div><div class="out creative">CREATIVE</div></div>
+    <div class="rrow"><div class="cond">3 ≤ score ≤ 4</div><div class="out analysis">ANALYSIS</div></div>
+    <div class="rrow"><div class="cond">score &gt; 4</div><div class="out coding">CODING</div></div>
+  </div>
+
+  <div class="callout warn">
+    <strong>CJK 加权细节：</strong> <code>_text_length</code> 把中文字符按 1.5 倍 word 计数（"分析一下竞品策略" 8 个汉字 ≈ 12 effective words），让中文不被低估为"短消息"而误判简单。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>模型选择 · 难度 → Bedrock model_id</h2>
+
+  <p>路由完产出 <code>difficulty: int</code>，由 <code>MODEL_TIERS</code> 字典映射到具体 Bedrock model ID：</p>
+
+  <pre><span class="key">MODEL_TIERS</span> = {
+    <span class="str">1</span>: <span class="str">"us.anthropic.claude-sonnet-4-6"</span>,
+    <span class="str">2</span>: <span class="str">"us.anthropic.claude-sonnet-4-6"</span>,
+    <span class="str">3</span>: <span class="str">"us.anthropic.claude-sonnet-4-6"</span>,
+    <span class="str">4</span>: <span class="str">"us.anthropic.claude-opus-4-6-v1"</span>,
+    <span class="str">5</span>: <span class="str">"us.anthropic.claude-opus-4-6-v1"</span>,
+}</pre>
+
+  <p>具体选模型在 <code>bedrock_provider.py</code> 里用 <strong>contextvar</strong> per-request 注入。这样同一个 provider 实例能为不同请求选不同模型，<strong>不污染全局状态</strong>。</p>
+
+  <div class="callout">
+    <strong>这是"Bedrock fallback chain" 之外的事：</strong>
+    <ol style="margin:6px 0 0 18px;color:var(--muted);font-size:12.5px">
+      <li>难度路由 → 选 Sonnet / Opus</li>
+      <li>Bedrock us-east-1 primary</li>
+      <li>503/throttle → fallback to us-west-2</li>
+      <li>流式 stall → fallback to VectorDB / OpenRouter</li>
+    </ol>
+    路由层选模型 = "聪明地省钱"，fallback 层 = "扛住故障"。两件事独立。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>完整调用 · 一次消息走过的路</h2>
+
+  <pre><span class="com"># nanobot_server.py / server.py 调度时</span>
+difficulty, category = <span class="key">await</span> assess_difficulty_async(
+    text=user_msg,
+    has_image=event.has_image,
+    has_file=event.has_file,
+)
+<span class="com"># difficulty 是 1-5 整数, category 是 5 类之一字符串</span>
+
+<span class="com"># 决定本次用哪个模型 → 设置 contextvar</span>
+model_id = MODEL_TIERS[difficulty]
+<span class="key">with</span> bedrock_model_override(model_id):
+    result = <span class="key">await</span> agent_loop.handle_message(user_msg)
+<span class="com"># 这一句之后整个 agent loop 所有 LLM 调用都用这个 model</span></pre>
+
+  <p>路由<strong>只在请求入口判定一次</strong>，整个 agent loop 期间不会换模型。同一个 conversation 不同 turn 可以用不同模型（"帮我改下页面" → Opus；后续 "看好了" → Sonnet）。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>配置 · 环境变量</h2>
+
+  <div class="rules-table">
+    <div class="rrow head"><div>Env Var</div><div>Default</div></div>
+    <div class="rrow"><div class="cond"><strong>ROUTING_JUDGE_MODEL</strong> · Layer 2 用的判官模型</div><div class="out" style="color:var(--muted)">amazon.nova-micro-v1:0</div></div>
+    <div class="rrow"><div class="cond"><strong>AWS_REGION</strong> · Bedrock 调用区域</div><div class="out" style="color:var(--muted)">us-east-1</div></div>
+    <div class="rrow"><div class="cond"><strong>SMART_ROUTING_V2</strong> · 是否启用 Layer 2 判官</div><div class="out" style="color:var(--muted)">true</div></div>
+    <div class="rrow"><div class="cond"><strong>LLM_MODEL</strong> · 默认主力模型（被路由覆盖）</div><div class="out" style="color:var(--muted)">claude-opus-4-6-v1</div></div>
+    <div class="rrow"><div class="cond"><strong>SUBAGENT_MODEL</strong> · 子 agent 用的模型</div><div class="out" style="color:var(--muted)">claude-sonnet-4-6</div></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>UsageMeter · 路由完了记账</h2>
+
+  <p>每次 LLM 调用（无论判官还是主力）都过 <code>UsageMeter</code> 记账：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">prompt_tokens / completion_tokens</strong> —— 算钱</li>
+    <li><strong style="color:var(--text)">cache_read_input_tokens</strong> —— prompt cache 命中的部分（Anthropic 给打折）</li>
+    <li><strong style="color:var(--text)">cache_creation_input_tokens</strong> —— 第一次创建 cache 的 token（贵 25%）</li>
+    <li><strong style="color:var(--text)">fallback_context</strong> —— 走 fallback chain 时记到哪一级，分别统计成本</li>
+  </ul>
+
+  <p>这些 metric 喂给每日 IM platform cost report (<code>amy_cost_daily_report.py</code>)，团队能看到"Nova Micro 判官花了多少 / 主 Sonnet 花了多少 / Opus 花了多少"。</p>
+
+  <div class="callout">
+    <strong>反馈环：</strong> 看到 "今天 80% 流量走 Sonnet 但成本仍 60% 在 Opus" → 知道 Opus 流量单价占主导 → 优化路由阈值 / prompt 设计 → 下次复盘看效果。<strong>路由不是配一次就完，是持续优化</strong>。
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/difficulty.py</code> + <code style="background:transparent;color:var(--muted)">auto-agent/gemini_judge.py</code> + <code style="background:transparent;color:var(--muted)">auto-agent/bedrock_provider.py</code> · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

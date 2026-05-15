@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>监控与可观测性 · OTEL + Jaeger + ctx_loss 检测</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+
+  /* Span tree */
+  .span-tree{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.8}
+  .span-root{color:var(--accent);font-weight:600}
+  .span-iter{color:var(--blue);margin-left:24px}
+  .span-tool{color:var(--green);margin-left:48px}
+  .span-tree .dur{color:var(--muted);font-size:11px;margin-left:12px;font-weight:400}
+
+  /* Event types */
+  .event-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+  .event{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-left:3px solid var(--accent)}
+  .event.snip{border-left-color:var(--yellow)}
+  .event.compact{border-left-color:var(--purple)}
+  .event.reset{border-left-color:var(--red)}
+  .event.ctxloss{border-left-color:var(--cyan)}
+  .event .en{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:13px;margin-bottom:4px}
+  .event.turn .en{color:var(--accent)}
+  .event.snip .en{color:var(--yellow)}
+  .event.compact .en{color:var(--purple)}
+  .event.reset .en{color:var(--red)}
+  .event.ctxloss .en{color:var(--cyan)}
+  .event .ed{color:var(--muted);font-size:12px;line-height:1.55}
+  .event .efields{margin-top:6px;color:var(--blue);font-family:"SF Mono",Menlo,monospace;font-size:11px}
+
+  /* JSONL row */
+  .jsonl{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;line-height:1.7;margin:6px 0;color:var(--text);overflow-x:auto;white-space:pre}
+  .jsonl .k{color:var(--blue)}
+  .jsonl .s{color:var(--green)}
+  .jsonl .n{color:var(--pink)}
+
+  /* Pattern table */
+  .pat-table{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .pat-row{display:grid;grid-template-columns:180px 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px}
+  .pat-row:last-child{border-bottom:none}
+  .pat-row.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .pat-row .pk{font-family:"SF Mono",Menlo,monospace;color:var(--cyan);font-weight:600;font-size:12px}
+  .pat-row .pd{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .pat-row .pd .example{background:var(--card-2);padding:2px 6px;border-radius:3px;color:var(--text);font-family:"SF Mono",Menlo,monospace;font-size:11px;display:inline-block;margin:2px 0}
+
+  /* Pipeline */
+  .pipe{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;text-align:center}
+  .pipe-box{display:inline-block;background:var(--card-2);padding:10px 16px;border-radius:6px;font-family:"SF Mono",Menlo,monospace;font-size:12px;margin:6px 0}
+  .pipe-arrow{color:var(--muted);font-size:16px;margin:4px 0}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"线上实测 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>10 · 监控与可观测性</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>10 · 监控与可观测性</h1>
+    <div class="sub">OTEL + Jaeger + 一套有创意的"agent 自我承认丢上下文"检测</div>
+  </div>
+
+  <div class="lead">
+    Athena 的观测分三层：<strong>分布式 trace</strong>（OTEL → Jaeger，每个 turn 一个 span 树）· <strong>结构化 metric</strong>（context_metrics.jsonl，5 种事件 append-only）· <strong>cost / usage</strong>（UsageMeter → IM platform 日报）。<br>
+    最有创意的是 <strong>ctx_loss 检测</strong> —— 用正则在 agent 自己的输出里抓"我这边没看到"等措辞，把"上下文丢失"变成可量化指标。Hand-verified on 17 hits across 943 historical pairs.
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>三层观测 · 总览</h2>
+
+  <div class="pipe">
+    <div class="pipe-box" style="background:var(--accent-dim);color:var(--accent);font-weight:600">agent 跑起来</div>
+    <div class="pipe-arrow">↓ fan out 到三处</div>
+    <div style="display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin-top:8px">
+      <div>
+        <div class="pipe-box" style="background:var(--blue-dim);color:var(--blue);font-weight:600">OTEL span</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:4px">分布式 trace → Jaeger</div>
+      </div>
+      <div>
+        <div class="pipe-box" style="background:var(--purple-dim);color:var(--purple);font-weight:600">context_metrics.jsonl</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:4px">5 种事件 · Prefect 聚合</div>
+      </div>
+      <div>
+        <div class="pipe-box" style="background:var(--green-dim);color:var(--green);font-weight:600">UsageMeter</div>
+        <div style="color:var(--muted);font-size:11px;margin-top:4px">Token & 成本 · IM platform 日报</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>OTEL · graceful no-op</h2>
+
+  <p>OpenTelemetry 集成最讨厌的事 = 没配 endpoint 时崩 / 拖慢。<code>otel_setup.py</code> 用 "可选启用" 模式：</p>
+
+  <pre><span class="key">def</span> init_otel(service_name: str) -> bool:
+    endpoint = os.environ.get(<span class="str">"OTEL_EXPORTER_OTLP_ENDPOINT"</span>)
+    <span class="key">if not</span> endpoint:
+        logger.info(<span class="str">"OTEL tracing disabled"</span>)
+        <span class="key">return False</span>   <span class="com"># 直接退，零开销</span>
+
+    <span class="key">try</span>:
+        provider = TracerProvider(
+            resource=Resource.create({<span class="str">"service.name"</span>: service_name})
+        )
+        exporter = OTLPSpanExporter(endpoint=endpoint, insecure=<span class="key">True</span>)
+        provider.add_span_processor(BatchSpanProcessor(
+            exporter,
+            max_queue_size=<span class="str">2048</span>,
+            max_export_batch_size=<span class="str">256</span>,
+            schedule_delay_millis=<span class="str">5000</span>,
+        ))
+        trace.set_tracer_provider(provider)
+        <span class="key">return True</span>
+    <span class="key">except</span> Exception <span class="key">as</span> e:
+        logger.warning(<span class="str">f"OTEL init failed: {e}"</span>)
+        <span class="key">return False</span></pre>
+
+  <p>关键设计：</p>
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>env <strong>不设 = 完全 no-op</strong>，没 import 开销</li>
+    <li>init 失败<strong>不抛错</strong>，agent 照常工作</li>
+    <li>OtelHook 同样检查 <code>_OTEL_AVAILABLE</code>，所有 hook 方法变 no-op</li>
+    <li><strong>BatchSpanProcessor</strong>：5s 批量发送，2048 缓冲，避免每个 span 一次 RPC</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>Span 树结构</h2>
+
+  <p>每次 agent turn 产生这样一颗 span 树（来自 <code>OtelHook</code> 注释）：</p>
+
+  <div class="span-tree">
+    <div class="span-root">▼ agent-turn <span class="dur">(real duration)</span></div>
+    <div class="span-iter">├─ think-iteration-0 <span class="dur">(real duration)</span></div>
+    <div class="span-tool">│&nbsp;&nbsp;&nbsp;&nbsp;├─ tool:exec <span class="dur">(marker, zero duration)</span></div>
+    <div class="span-tool">│&nbsp;&nbsp;&nbsp;&nbsp;└─ tool:read_file <span class="dur">(marker, zero duration)</span></div>
+    <div class="span-iter">└─ think-iteration-1 <span class="dur">(real duration)</span></div>
+    <div class="span-tool">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ tool:web_fetch <span class="dur">(marker, zero duration)</span></div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Phase 1 妥协：</strong> tool spans 是 zero-duration markers —— 只记 name + 完成 status，没记<strong>每个 tool 实际耗时</strong>。原因：要改 nanobot 框架的 runner.py 加 timing hook。<strong>Phase 2 计划</strong>把这个补上。<br>
+    Phase 1 已经能回答"哪个 turn 调了哪些工具"，但不能回答"web_fetch 花了多久"。
+  </div>
+
+  <p>每个 span 都带这些 base attribute：</p>
+
+  <pre>service.name = <span class="str">"agent-primary"</span>   <span class="com"># 哪个 agent</span>
+session.key  = <span class="str">"lark:oc_abc..."</span>
+chat.id      = <span class="str">"oc_abc..."</span>
+trace.id     = <span class="str">"&lt;run uuid&gt;"</span>     <span class="com"># 与 _active_cards trace_id 一致</span></pre>
+
+  <p>所以在 Jaeger 里能用 chat.id 或 trace.id 反查到具体某条 IM platform 消息的完整链路。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>Jaeger · 线上实测</h2>
+
+  <div class="evidence">
+$ docker ps | grep -iE jaeger
+jaegertracing/jaeger:latest · Up 4 weeks · container: jaeger
+（在 Agent EC2 上）
+  </div>
+
+  <p>Jaeger 单容器跑了 4 周了，全 Agent fleet 把 OTEL span 都送过来。访问方式（推测）：<code>http://jaeger.Athena.local:16686</code> 或 cloudflared tunnel。</p>
+
+  <div class="callout">
+    <strong>典型用法：</strong>
+    <ul style="margin:6px 0 0 18px;color:var(--muted);font-size:12.5px">
+      <li>用户报"Athena 这次回复慢" → 拿 trace.id 进 Jaeger 看哪个 iteration 卡住</li>
+      <li>看 think-iteration-0 vs -1 时长，定位是 LLM 慢还是工具慢</li>
+      <li>(Phase 2 后) tool span 有真实 duration，能看 web_fetch 等具体耗时</li>
+    </ul>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>context_metrics.jsonl · 5 种事件</h2>
+
+  <p>OTEL 适合"看单个 trace"，但<strong>统计聚合</strong>更适合 JSONL。<code>{workspace}/context_metrics.jsonl</code> append-only，每行一个事件：</p>
+
+  <div class="event-grid">
+    <div class="event turn">
+      <div class="en">turn</div>
+      <div class="ed">每次 LLM 调用后写一条</div>
+      <div class="efields">prompt_tokens · completion_tokens · cached_tokens · context_window · used_tools · model · ttft_ms · chat_type · session_age_hours · message_count</div>
+    </div>
+    <div class="event snip">
+      <div class="en">snip</div>
+      <div class="ed">_snip_history() 删 msg（context 溢出兜底）</div>
+      <div class="efields">removed_messages · saved_tokens · reason</div>
+    </div>
+    <div class="event compact">
+      <div class="en">compaction</div>
+      <div class="ed">Consolidator 归档老消息到 history.jsonl</div>
+      <div class="efields">boundary_idx · archived_tokens · session_key</div>
+    </div>
+    <div class="event reset">
+      <div class="en">session_reset</div>
+      <div class="ed">session 被重置 — 按原因分类计数</div>
+      <div class="efields">reason · session_age</div>
+    </div>
+    <div class="event ctxloss">
+      <div class="en">ctx_loss</div>
+      <div class="ed">agent 回复匹配了"丢上下文"的高精度模式</div>
+      <div class="efields">pattern_name · session · chat_id · reply_excerpt</div>
+    </div>
+  </div>
+
+  <p>一条 turn 事件样例：</p>
+
+  <div class="jsonl">{<span class="k">"event"</span>:<span class="s">"turn"</span>, <span class="k">"ts"</span>:<span class="s">"2026-05-13T08:42:11Z"</span>, <span class="k">"session"</span>:<span class="s">"lark:oc_abc"</span>, <span class="k">"iteration"</span>:<span class="n">2</span>,
+ <span class="k">"prompt_tokens"</span>:<span class="n">12480</span>, <span class="k">"completion_tokens"</span>:<span class="n">450</span>, <span class="k">"cached_tokens"</span>:<span class="n">11200</span>,
+ <span class="k">"context_window"</span>:<span class="n">618000</span>, <span class="k">"used_tools"</span>:true, <span class="k">"model"</span>:<span class="s">"...claude-opus-4-6-v1"</span>,
+ <span class="k">"ttft_ms"</span>:<span class="n">823</span>, <span class="k">"chat_type"</span>:<span class="s">"group"</span>, <span class="k">"session_age_hours"</span>:<span class="n">3.4</span>, <span class="k">"message_count"</span>:<span class="n">42</span>}</div>
+
+  <div class="callout">
+    <strong>append-only JSONL 而非 DB：</strong> 一台 nanobot 容器一天约 10K 条事件 ≈ 几 MB JSONL，<strong>没必要 DB</strong>。Prefect 每天聚合这些文件成 IM platform 日报。本地查也方便 (jq 一把梭)。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>ctx_loss 检测 · 让 agent 自己暴露问题</h2>
+
+  <p>传统 "context loss" 很难测 —— 你怎么知道 agent 是"<strong>真不记得</strong>"还是"<strong>故意不答</strong>"？ Athena 团队的招：<strong>正则匹配 agent 自己说漏的话</strong>。</p>
+
+  <div class="callout warn">
+    <strong>3 个高精度模式</strong>（hand-verified 17 hits / 943 历史样本，Apr 2026 sweep）：
+  </div>
+
+  <div class="pat-table">
+    <div class="pat-row head"><div>pattern_name</div><div>匹配什么 + 例子</div></div>
+    <div class="pat-row">
+      <div class="pk">agent_no_context</div>
+      <div class="pd">agent 承认<strong>看不到/找不到 prior 消息/对话/历史</strong>。<strong>故意排除</strong>"don't have access to repo / HR DB"（domain knowledge gap，不是 memory 失败）<br>
+        <span class="example">我这边没看到刚才那条消息</span> · <span class="example">don't have visibility into your earlier reply</span>
+      </div>
+    </div>
+    <div class="pat-row">
+      <div class="pk">agent_request_resend</div>
+      <div class="pd">agent <strong>要求用户重发</strong>。注意：必须带 "again / 再" 才算 —— "Could you share the doc?" 是初次请求，<strong>不</strong>是 memory 失败<br>
+        <span class="example">你能不能再发一遍</span> · <span class="example">could you resend that</span> · <span class="example">please re-send</span>
+      </div>
+    </div>
+    <div class="pat-row">
+      <div class="pk">agent_no_history</div>
+      <div class="pd">agent 明确说 "<strong>没找到 / 看不到 历史 / 聊天记录</strong>"<br>
+        <span class="example">没有找到聊天记录</span> · <span class="example">can't find that message</span>
+      </div>
+    </div>
+  </div>
+
+  <p>检测时机（在 _LoopHook.after_iteration 里）：</p>
+
+  <pre><span class="com"># 只检查 final user-facing 回复（不再有 tool_calls）</span>
+<span class="com"># 中间 "let me check..." 不算 ctx_loss</span>
+<span class="key">if not</span> context.tool_calls:
+    final_text = getattr(context, <span class="str">"final_content"</span>, <span class="key">None</span>)
+    <span class="key">if</span> final_text:
+        tracker.record_ctx_loss(
+            reply_text=final_text,
+            session=self._session_key,
+            chat_id=chat_id,
+        )</pre>
+
+  <p>核心设计原则：</p>
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">高精度优先于召回</strong> · 宁可漏，不能误报。误报会让指标失真</li>
+    <li><strong style="color:var(--text)">只看 final reply</strong> · "我来查一下"（中间状态）不算丢失</li>
+    <li><strong style="color:var(--text)">人工 verify 阈值</strong> · 17 hits / 943 pairs ≈ 1.8% ctx_loss rate</li>
+    <li><strong style="color:var(--text)">迭代精度</strong> · pattern 注释提到 "Codex round 2 / round 3" —— 用 LLM 对 pattern 做对抗式 review</li>
+  </ul>
+
+  <div class="callout">
+    <strong>这个 metric 给团队的价值：</strong> 每天 IM platform 日报里能看 "ctx_loss rate = 1.7%"。如果某天突然 5%，说明<strong>context 处理坏了</strong>（compaction 太激进 / memory.search 挂了 / 新部署 regression）—— 主动 alert 而不是等用户抱怨。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>TTFT · 流式响应感知</h2>
+
+  <p>用户感知的不是总时长，是<strong>第一个字什么时候出现</strong>（Time To First Token）。AgentLoop 的 <code>_LoopHook</code> 在每次 iteration 测它：</p>
+
+  <pre><span class="key">async def</span> before_iteration(self, context):
+    self._turn_start = time.perf_counter()
+    self._ttft_ms = None
+
+<span class="key">async def</span> on_stream(self, context, delta):
+    <span class="key">if</span> self._ttft_ms <span class="key">is None and</span> self._turn_start > <span class="str">0</span>:
+        self._ttft_ms = (time.perf_counter() - self._turn_start) * <span class="str">1000</span>
+    <span class="com"># ... 转发 delta 给 callback</span></pre>
+
+  <p>第一个 stream chunk 到达时记 ms 数。每次 turn 事件 JSONL 写 <code>ttft_ms</code>，统计后能看：</p>
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>不同<strong>模型</strong>的 TTFT 分布（Opus vs Sonnet）</li>
+    <li>不同<strong>群聊 vs 私聊</strong>的 TTFT（context 大小不同）</li>
+    <li>不同<strong>session age</strong> 的 TTFT（老对话 context 大、TTFT 高）</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>UsageMeter · 钱花在哪</h2>
+
+  <p>每次 LLM / embedding 调用都过 <code>UsageMeter</code> 记账（第 4 篇详谈过路由 + 计费）。关键字段：</p>
+
+  <div class="event-grid">
+    <div class="event turn">
+      <div class="en">tokens_input / tokens_output</div>
+      <div class="ed">基础计费量，按模型单价算钱</div>
+    </div>
+    <div class="event compact">
+      <div class="en">cache_read_input_tokens</div>
+      <div class="ed">Anthropic prompt cache 命中部分 · 价格 0.1×</div>
+    </div>
+    <div class="event snip">
+      <div class="en">cache_creation_input_tokens</div>
+      <div class="ed">第一次创建 cache · 价格 1.25×（贵 25%）</div>
+    </div>
+    <div class="event ctxloss">
+      <div class="en">fallback_context</div>
+      <div class="ed">走 fallback 链时记到哪一级 · 分开统计各路成本</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>IM platform 日报来源：</strong> 这些数据每天被 <code>/opt/Athena/scripts/amy_cost_daily_report.py</code> 聚合，推到专属 IM webhook。团队能看到"今天 Sonnet vs Opus vs Nova Micro 各花多少"。这正是<strong>难度路由</strong>（第 4 篇）的反馈环。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>从 metric 到 alert · Prefect 聚合</h2>
+
+  <p>JSONL 文件本身没有 alert，要靠定时聚合作业（Prefect）：</p>
+
+  <div class="pipe">
+    <div class="pipe-box" style="background:var(--accent-dim);color:var(--accent)">每个 nanobot 容器 · context_metrics.jsonl</div>
+    <div class="pipe-arrow">↓ 每天 cron</div>
+    <div class="pipe-box" style="background:var(--blue-dim);color:var(--blue)">Prefect flow · 拉所有容器的 jsonl</div>
+    <div class="pipe-arrow">↓ aggregate</div>
+    <div class="pipe-box" style="background:var(--purple-dim);color:var(--purple)">computed: ctx_loss_rate · avg_ttft · token_cost · turn_count</div>
+    <div class="pipe-arrow">↓ render</div>
+    <div class="pipe-box" style="background:var(--green-dim);color:var(--green)">POST IM webhook · 日报卡片</div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Prefect 部署的隐患（已记入项目 memory）：</strong> 2 个 Prefect worker pool 中，my-ec2-pool 的 stray ProcessWorker 100% 失败 IM platform interactive-card POST · ec2-worker-v2 100% 成功 —— 但调度器倾向选 ProcessWorker。已用 work-pool 隔离修复，但要小心 worker drift。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>观测的"哲学" · 信号 → 改进</h2>
+
+  <p>Athena 的观测设计有几个一致的原则，值得总结：</p>
+
+  <ol style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">没有 endpoint 配置就 0 开销</strong> · 不让观测拖累生产</li>
+    <li><strong style="color:var(--text)">异常隔离</strong> · 观测代码挂了不能挂 agent —— AgentHook 全方法 catch + log</li>
+    <li><strong style="color:var(--text)">原始数据 append-only</strong> · JSONL 比 DB 便宜，聚合在外</li>
+    <li><strong style="color:var(--text)">指标驱动决策</strong> · 看到 ctx_loss 涨 → 改 compaction · 看到某模型成本占比异常 → 调整路由阈值</li>
+    <li><strong style="color:var(--text)">人工 verify 模式</strong> · 不发 "随手加的 metric"，正则 / 阈值都要人工对照样本</li>
+    <li><strong style="color:var(--text)">trace_id 全链路</strong> · 同一个 UUID 串起 OTEL span / JSONL 事件 / IM 卡片 / Hatchet workflow run，反查任意一处都能找到全貌</li>
+  </ol>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/otel_setup.py</code> + <code style="background:transparent;color:var(--muted)">hooks/otel_hook.py</code> + <code style="background:transparent;color:var(--muted)">nanobot/agent/context_metrics.py</code><br>
+    线上 · jaeger 容器 healthy 4 weeks · Prefect 日报 / IM platform cost report · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

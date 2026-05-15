@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IM platform 接入 + 卡片生命周期 · 用户看到的"打字感"是怎么造的</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  /* File map */
+  .filemap{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+  .fileitem{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 14px;border-left:3px solid var(--accent)}
+  .fileitem.cyan{border-left-color:var(--cyan)}
+  .fileitem.green{border-left-color:var(--green)}
+  .fileitem.purple{border-left-color:var(--purple)}
+  .fileitem.blue{border-left-color:var(--blue)}
+  .fileitem .fn{font-family:"SF Mono",Menlo,monospace;font-size:12px;font-weight:600;color:var(--text)}
+  .fileitem .fd{color:var(--muted);font-size:11.5px;margin-top:3px;line-height:1.5}
+
+  /* State machine */
+  .states{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .state-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center;position:relative}
+  .state-card.thinking{border-color:var(--blue);background:var(--blue-dim)}
+  .state-card.working{border-color:var(--yellow);background:var(--yellow-dim)}
+  .state-card.final{border-color:var(--green);background:var(--green-dim)}
+  .state-card.error{border-color:var(--red);background:var(--red-dim)}
+  .state-card.stopped{border-color:var(--muted);background:var(--card-2)}
+  .state-card .sn{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:14px;margin-bottom:4px}
+  .state-card.thinking .sn{color:var(--blue)}
+  .state-card.working .sn{color:var(--yellow)}
+  .state-card.final .sn{color:var(--green)}
+  .state-card.error .sn{color:var(--red)}
+  .state-card.stopped .sn{color:var(--muted)}
+  .state-card .sd{font-size:11.5px;color:var(--muted);line-height:1.55}
+
+  /* Vertical flow */
+  .vflow{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .vstep{display:grid;grid-template-columns:32px 1fr auto;gap:12px;padding:10px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:6px;font-size:13px}
+  .vstep .n{background:var(--card-3);color:var(--muted);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .vstep.green .n{background:var(--green);color:var(--bg)}
+  .vstep.yellow .n{background:var(--yellow);color:var(--bg)}
+  .vstep .body strong{color:var(--text)}
+  .vstep .body .h{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .vstep .tag{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;background:var(--card-3);color:var(--muted);padding:2px 6px;border-radius:3px}
+
+  /* Card mockup */
+  .card-mock{background:#fafafa;color:#1f2328;border-radius:10px;padding:14px 16px;font-family:-apple-system,sans-serif;font-size:13px;margin:8px 0;border:1px solid #d0d7de;max-width:480px}
+  .card-mock .head{font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .card-mock .head .dot{width:8px;height:8px;border-radius:50%;background:#ff8c42;animation:pulse 1.5s infinite}
+  .card-mock.final .head .dot{background:#3fb950;animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .card-mock .body{color:#656d76;font-size:12.5px;line-height:1.55}
+  .card-mock .tools{margin-top:8px;padding-top:8px;border-top:1px solid #d0d7de;color:#0969da;font-family:"SF Mono",Menlo,monospace;font-size:11px}
+  .card-mock .footer{margin-top:8px;color:#8b949e;font-size:10.5px;font-family:"SF Mono",Menlo,monospace}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"代码事实 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+  .evidence.warn{border-left-color:var(--yellow)}
+  .evidence.warn::before{content:"⚠ 与 CLAUDE.md 不符";color:var(--yellow)}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>05 · IM platform 接入 + 卡片生命周期</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>05 · IM platform 接入 + 卡片生命周期</h1>
+    <div class="sub">用户感觉 Athena "正在打字" 是怎么造出来的 —— 卡片状态机 + 实时更新</div>
+  </div>
+
+  <div class="lead">
+    IM platform 没有 "AI 正在打字..." 协议，所以 Athena <strong>自己造</strong>了一套：发出去一张 IM platform 卡片当占位，然后<strong>不停往里塞内容</strong> —— "我在思考" → "我在调 web_search('XXX')" → "我在写文件" → 最终答案。整个过程靠 <strong>trace_id → card_id</strong> 这个内存映射追踪每张活动卡片。<br>
+    <code>lark/</code> 一共 13 个文件，3715 行代码，专门处理这件事。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>lark/ 目录 · 谁负责谁</h2>
+
+  <div class="filemap">
+    <div class="fileitem cyan"><div class="fn">client.py</div><div class="fd">604 行 · IM platform API HTTP 客户端（发卡片、改卡片、加反应、上传文件）</div></div>
+    <div class="fileitem cyan"><div class="fn">channel.py</div><div class="fd">261 行 · IM 通道实现，把 LLM 输出适配成 IM platform 消息</div></div>
+    <div class="fileitem cyan"><div class="fn">channel_adapter.py</div><div class="fd">147 行 · 多 channel 适配层（IM platform / Slack 共享）</div></div>
+    <div class="fileitem green"><div class="fn">cards.py</div><div class="fd">372 行 · 5 个 build_*_card 函数 —— 卡片状态机的"模板渲染"</div></div>
+    <div class="fileitem green"><div class="fn">buttons.py</div><div class="fd">393 行 · 按钮回调配置 + 路由（stop / approve / skip 等）</div></div>
+    <div class="fileitem green"><div class="fn">elements.py</div><div class="fd">— · 卡片元素构造（divider / hint / model_tag 等小组件）</div></div>
+    <div class="fileitem purple"><div class="fn">tracker.py</div><div class="fd">494 行 · ToolTracker 状态机 + ToolCall 数据类 + 图标 / 文案映射</div></div>
+    <div class="fileitem blue"><div class="fn">comments.py</div><div class="fd">481 行 · IM platform 文档评论 → 触发 agent 的逻辑</div></div>
+    <div class="fileitem blue"><div class="fn">comment_channel.py</div><div class="fd">528 行 · 评论作为一种独立 channel 的封装</div></div>
+    <div class="fileitem"><div class="fn">reasoning.py</div><div class="fd">— · LLM thinking 块的渲染（如何展示 think tag 内容）</div></div>
+    <div class="fileitem"><div class="fn">unfurl.py</div><div class="fd">248 行 · 链接预览（IM platform URL unfurl 协议）</div></div>
+    <div class="fileitem"><div class="fn">channels/lark_im.py</div><div class="fd">— · IM 通道的具体 IM platform 实现</div></div>
+    <div class="fileitem"><div class="fn">channels/lark_comment.py</div><div class="fd">— · 评论通道的具体 IM platform 实现</div></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>卡片状态机 · 5 个状态</h2>
+
+  <p>用户发消息 → 立即收到一张"占位卡片" → 卡片内容随 agent 工作进度<strong>原地更新</strong>。这就是 Athena 给人的"实时打字感"。每个状态对应 cards.py 里一个 build_* 函数：</p>
+
+  <div class="states">
+    <div class="state-card thinking">
+      <div class="sn">thinking</div>
+      <div class="sd">刚收到消息<br>"我在思考你的问题..."</div>
+    </div>
+    <div class="state-card working">
+      <div class="sn">working</div>
+      <div class="sd">LLM 在调工具<br>"我在用 web_search 查 ..."</div>
+    </div>
+    <div class="state-card final">
+      <div class="sn">final</div>
+      <div class="sd">答案出来了<br>展示完整内容 + tool 历史</div>
+    </div>
+    <div class="state-card stopped">
+      <div class="sn">stopped</div>
+      <div class="sd">用户按了 stop 按钮<br>中止当前轮</div>
+    </div>
+    <div class="state-card error">
+      <div class="sn">error</div>
+      <div class="sd">LLM 调用挂了<br>展示错误 + trace 链接</div>
+    </div>
+  </div>
+
+  <p style="margin-top:14px">每张卡片底部固定带：<strong>model 名 / 难度 tag / Stop 按钮 / trace 链接 / 排队数</strong>。这是 cards.py 各 build_* 函数的共同参数。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>卡片渲染示例</h2>
+
+  <p>IM platform 用户实际看到的视觉效果（用 HTML 模拟）：</p>
+
+  <div class="card-mock">
+    <div class="head"><span class="dot"></span>Athena · thinking · 2s</div>
+    <div class="body">让我帮你查一下 Q2 的 tenant-01 campaign 数据...</div>
+    <div class="footer">Sonnet · L2 · ▶ stop · #abc123</div>
+  </div>
+
+  <div class="card-mock">
+    <div class="head"><span class="dot"></span>Athena · working · 5s</div>
+    <div class="body">已经拉到 campaign 列表，现在分析 top creator 表现。</div>
+    <div class="tools">→ web_search("tenant-01 Q2 metrics")<br>→ exec(python analyze_campaign.py)</div>
+    <div class="footer">Sonnet · L2 · ▶ stop · #abc123</div>
+  </div>
+
+  <div class="card-mock final">
+    <div class="head"><span class="dot"></span>Athena · done · 12s</div>
+    <div class="body">Q2 tenant-01 campaign 报告：<br>· 14 个创作者参与<br>· top 3 平均 vph 2.3M<br>· 建议替换底部 3 位<br>...完整数据见附件</div>
+    <div class="tools">用了 4 个工具 · 12 个 LLM turn</div>
+    <div class="footer">Opus · L4 · ✓ done · #abc123</div>
+  </div>
+
+  <div class="callout">
+    <strong>同一张卡片，3 次内容替换</strong>。IM platform API 用 PATCH 模式更新现有卡片 —— Athena 拿着 card_id 反复改它，不是发新消息。这是用户"实时打字感"的来源。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>追踪机制 · trace_id → card_id 内存映射</h2>
+
+  <p>每次有 agent 任务在跑，server 内存里维护一个 <code>_active_cards</code> 字典：</p>
+
+  <pre><span class="com"># nanobot_server.py · line 257-262</span>
+_active_lock = threading.Lock()
+_active_cards: dict[str, dict] = {}    <span class="com"># trace_id → {card_id, started_at}</span>
+_active_reactions: dict[str, tuple[str, str]] = {}  <span class="com"># trace_id → (msg_id, reaction_id)</span>
+_ACTIVE_MAX = 10_000  <span class="com"># 上限，超过驱逐最老的</span></pre>
+
+  <p>用 <strong>threading.Lock</strong>（不是 asyncio.Lock）—— 因为 FastAPI webhook 跑在 asyncio loop，<strong>Hatchet workflow handler 跑在独立线程</strong>，两边都改这个 dict 必须 thread-safe。</p>
+
+  <div class="vflow">
+    <div class="vstep">
+      <div class="n">1</div>
+      <div class="body"><strong>用户在 IM platform @Athena</strong><div class="h">IM platform 推 webhook 到 /webhook 端点</div></div>
+    </div>
+    <div class="vstep">
+      <div class="n">2</div>
+      <div class="body"><strong>server 发占位卡片</strong><div class="h">build_thinking_card() → POST IM platform API → 拿到 card_id</div></div>
+      <div class="tag">cards.py</div>
+    </div>
+    <div class="vstep green">
+      <div class="n">3</div>
+      <div class="body"><strong>_register_active_card(trace_id, card_id)</strong><div class="h">_active_cards[trace_id] = {"card_id": ..., "started_at": time.time()}</div></div>
+    </div>
+    <div class="vstep">
+      <div class="n">4</div>
+      <div class="body"><strong>Hatchet workflow 开始</strong><div class="h">agent loop 跑起来，每个进度更新都 PATCH 这张 card_id</div></div>
+    </div>
+    <div class="vstep yellow">
+      <div class="n">5</div>
+      <div class="body"><strong>遇到工具调用 → working 状态</strong><div class="h">build_working_card(tool_name="web_search", activity="搜 tenant-01...")</div></div>
+      <div class="tag">progress</div>
+    </div>
+    <div class="vstep green">
+      <div class="n">6</div>
+      <div class="body"><strong>最终答案 → final 状态</strong><div class="h">build_final_card(content=...) · _unregister_active_card(trace_id)</div></div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>设计反转 · 从持久化回到纯内存</h2>
+
+  <p>CLAUDE.md 上写"<strong>card_lifecycle.py — SQLite store · 30s background reconciler 修复孤儿卡片</strong>"。<strong>但代码实测：这个文件不存在了</strong>。被有意删除：</p>
+
+  <div class="evidence warn">
+# nanobot_server.py · line 87
+# card_lifecycle removed — in-memory tracking + shutdown hook replaces it.
+# See .respec/nanobot-card-lifecycle-redesign.md for rationale.
+
+# nanobot_server.py · line 5390
+# One-time cleanup: delete legacy card_lifecycle.db from previous deploys.
+_legacy_db = Path("/workspace/sessions/card_lifecycle.db")
+...
+</div>
+
+  <p>原因写在代码注释里：</p>
+
+  <div class="callout danger">
+    <strong>为什么删 SQLite：</strong> "OpenClaw-IM platform + Hermes 都只在内存里 hold outbound IDs。持久化反而造成 zombie row（shadow-noop 状态留下死记录），错误地泄露进 IM platform API 调用。"<br><br>
+    简而言之：<strong>SQLite 持久化导致死信息复活</strong>，比"重启丢卡片"还糟。
+  </div>
+
+  <p>新方案 = <strong>纯内存 + shutdown hook 善后</strong>：</p>
+
+  <ol style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>正常运行时：所有 active 卡片只在 <code>_active_cards</code> 内存里</li>
+    <li>容器 shutdown：FastAPI <code>@app.on_event("shutdown")</code> 触发，遍历 <code>_snapshot_active_cards()</code></li>
+    <li>对每张活动卡片发"interrupted"终态更新："这次任务被中断了，你可以重新问"</li>
+    <li>容器停掉，所有内存清空 —— 重启后是干净状态</li>
+  </ol>
+
+  <div class="callout warn">
+    <strong>代价：</strong> 容器<strong>异常崩溃</strong>（没走 shutdown hook）会留下"幽灵卡片"—— 用户那边永远停在 thinking 状态。但<strong>这种事件极少</strong>（Hatchet 一般正常 graceful），用户重发消息也能恢复 —— 团队认定比 SQLite zombie 风险小得多。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>ToolTracker · 边跑边显示"我在做什么"</h2>
+
+  <p>working 卡片那个"我在调 web_search('XXX')"是 <code>lark/tracker.py</code> 里的 <strong>ToolTracker 状态机</strong>渲染出来的。它持有一个 <code>list[ToolCall]</code>，每次有新 tool 调用 / tool 完成就更新：</p>
+
+  <pre><span class="key">class</span> ToolCall:
+    name: str          <span class="com"># "web_search"</span>
+    family: str        <span class="com"># "web" / "filesystem" / "shell" / ...</span>
+    target: str        <span class="com"># "tenant-01 Q2 metrics" / "/path/file.py"</span>
+    started_at: float
+    finished_at: float | None
+
+<span class="key">class</span> ToolTracker:
+    def add_call(...)
+    def complete(...)
+    def render() -> str     <span class="com"># 给卡片 body 用</span></pre>
+
+  <p>渲染时 ToolTracker 做几件事：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><code>_icon_for(name)</code> · 不同工具给不同 emoji 图标 —— 🔍 web_search · 📝 write_file · 🐚 exec · ...</li>
+    <li><code>_get_family(name)</code> · 把工具归类（fs / web / shell）—— 同 family 的连续调用可以折叠成一行显示</li>
+    <li><code>_extract_target(detail, family)</code> · 从 tool args 抽出最关键参数（"web_search(query='X')" → "X"）</li>
+    <li><code>_parse_single_hint(hint)</code> · 把 agent 写的中文活动描述渲染成 inline icon</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>Emoji Reaction · 第二条反馈通道</h2>
+
+  <p>除了卡片，Athena 还在<strong>用户的原消息</strong>上加 emoji reaction（"👀 我看到了" / "✅ 处理完了"）。这是用户最快收到 "Athena 知道你了"的信号 —— 因为发卡片本身可能要 1-2 秒，emoji 几乎瞬发。</p>
+
+  <pre><span class="com"># nanobot_server.py</span>
+_active_reactions: dict[str, tuple[str, str]] = {}
+<span class="com"># trace_id → (message_id, reaction_id)</span></pre>
+
+  <p>跟 _active_cards 一样的追踪机制，shutdown 时也会清理（删除尚未"对应完"的 emoji）。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>按钮交互 · 卡片不只是显示</h2>
+
+  <p><code>lark/buttons.py</code> 393 行专门处理按钮回调。常见按钮：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">▶ Stop</strong> · 中止当前 agent 跑动 —— 路由到 CommandRouter 的 /stop</li>
+    <li><strong style="color:var(--text)">✓ 确认 / ✗ 跳过 / ⊘ 取消</strong> · 7 步 autopilot 在 Step 3/4 需要人工决策时用</li>
+    <li><strong style="color:var(--text)">🔄 重试</strong> · 错误卡片提供，重新跑同样输入</li>
+    <li><strong style="color:var(--text)">🔍 trace</strong> · 跳到 agent doctor URL（带 trace_id 的诊断页）</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>按钮的 "回调地址" 必须固定</strong> —— IM platform 卡片配置里写死 webhook URL，agent 服务重启后路径必须不变。这就是为啥按钮处理走<strong>独立的 /button_callback 路径</strong>而不是 /webhook。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>评论通道 · 第二种触发方式</h2>
+
+  <p><code>lark/comments.py</code> + <code>lark/comment_channel.py</code> 一共 1000+ 行 —— 处理一种特殊的触发：<strong>用户在 IM platform 文档里 @Athena 评论</strong>。</p>
+
+  <p>区别于 IM @：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>没有"群对话"概念，每条评论独立上下文</li>
+    <li>触发 Athena 之后，回复也作为"对评论的回复"挂在原评论下</li>
+    <li>非常适合"agent 在文档里帮我把这段改一下"这种用法</li>
+  </ul>
+
+  <p>实现上 comment_channel.py 实现了同一个 <code>ChannelProtocol</code>（在 nanobot 框架里抽象），所以底层 agent loop 完全不关心是 IM 还是评论 —— 只看到统一的 "InboundMessage" 接口。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>整图 · 一条 IM platform 消息的完整旅程</h2>
+
+  <pre>用户在 IM 群 @Athena
+  ↓
+[IM webhook → POST /webhook]
+  ↓
+1. signature 校验 (IM platform verification token)
+2. message_id 去重 (内存 set)
+  ↓
+3. 立即给原消息加 👀 emoji reaction
+4. 立即发 thinking 卡片 → 拿 card_id
+5. _register_active_card(trace_id, card_id)
+  ↓
+[Hatchet durable task 提交]
+  ↓
+6. memory.search() · preference · difficulty 路由
+7. agent_loop.run() ←─ 期间 _LoopHook 把 thought
+                       + tool_hint 通过 on_progress
+                       → PATCH 卡片到 working 状态
+  ↓
+8. final_content 出来
+  ↓
+9. PATCH 卡片到 final 状态 (含 tool 总结、用时)
+10. 把 👀 emoji 删掉，可选加 ✅
+11. _unregister_active_card(trace_id)
+  ↓
+[memory.save() async background]</pre>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/lark/</code>（13 文件 · 3715 行）+ <code style="background:transparent;color:var(--muted)">auto-agent/nanobot_server.py</code> 中 _active_cards 部分<br>
+    重要事实 · card_lifecycle.py 已在 .respec/nanobot-card-lifecycle-redesign.md 后<strong style="color:var(--yellow)">主动移除</strong>，CLAUDE.md 待更新 · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

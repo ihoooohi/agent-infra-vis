@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cetus 多租户基础设施 · 22 家客户共用一栋楼</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+  pre .num{color:var(--pink)}
+
+  /* Arch diagram */
+  .arch{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center}
+  .arch .box{padding:12px 20px;border-radius:6px;display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:13px;font-weight:600;margin:0 auto}
+  .arch .box .sub{color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+  .arch .arrow{color:var(--muted);font-size:20px;margin:8px 0}
+  .arch .row{display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+
+  /* Tenant grid */
+  .tenant-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:6px;margin-top:8px}
+  .tenant{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;display:flex;align-items:center;justify-content:space-between;border-left:2px solid var(--green)}
+  .tenant.orphan{border-left-color:var(--red);background:var(--red-dim)}
+  .tenant .pair-label{color:var(--muted);font-size:10px}
+
+  /* Table */
+  .table{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .trow{display:grid;grid-template-columns:200px 1fr;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;align-items:start}
+  .trow:last-child{border-bottom:none}
+  .trow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .trow .tk{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-weight:600;font-size:12px}
+  .trow .td{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .trow .td strong{color:var(--text)}
+
+  /* DB schema */
+  .schema-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+  .table-box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-top:3px solid var(--blue)}
+  .table-box.routes{border-top-color:var(--accent)}
+  .table-box.audit{border-top-color:var(--yellow)}
+  .table-box.skills{border-top-color:var(--cyan)}
+  .table-box .tn{font-family:"SF Mono",Menlo,monospace;font-weight:600;color:var(--blue);font-size:13px;margin-bottom:4px}
+  .table-box.routes .tn{color:var(--accent)}
+  .table-box.audit .tn{color:var(--yellow)}
+  .table-box.skills .tn{color:var(--cyan)}
+  .table-box .td{color:var(--muted);font-size:11.5px;line-height:1.55}
+
+  /* Flow steps */
+  .vflow{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .vstep{display:grid;grid-template-columns:32px 1fr auto;gap:12px;padding:10px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:4px;font-size:13px}
+  .vstep .n{background:var(--card-3);color:var(--muted);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .vstep.green .n{background:var(--green);color:var(--bg)}
+  .vstep .body strong{color:var(--text)}
+  .vstep .body .h{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .vstep .tag{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;background:var(--card-3);color:var(--muted);padding:2px 6px;border-radius:3px}
+  .vstep .tag.cache{background:var(--accent-dim);color:var(--accent)}
+  .vstep .tag.db{background:var(--blue-dim);color:var(--blue)}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"线上实测 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>09 · Cetus 多租户基础设施</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>09 · Cetus 多租户基础设施</h1>
+    <div class="sub">22 家外部客户共用一台机器 · DB 是 SSOT · routeCache 是 30s 内存窗</div>
+  </div>
+
+  <div class="lead">
+    Cetus 是把 Athena 的能力<strong>打包卖给外部客户</strong>的 SaaS。同一台 EC2、同一个总路由 <code>tenant-gateway</code>，把进来的 IM/Slack webhook<strong>按 chat_id 查 DB 路由表</strong>，分发到对应租户的 agent 容器。<br>
+    DB 是 single source of truth · 内存 routeCache 30s 刷一次 —— 是 Cetus 多租户的两根支柱。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>顶层架构 · 三层套娃</h2>
+
+  <div class="arch">
+    <div class="box" style="background:var(--purple-dim);border:1px solid var(--purple);color:var(--purple)">
+      Cloudflare Tunnel · Cetus.the-company-ai.com / tenant-admin.the-company-ai.com
+      <div class="sub">公网入口 · 屏蔽真实 EC2 IP</div>
+    </div>
+    <div class="arrow">↓ HTTPS</div>
+    <div class="box" style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent)">
+      tenant-gateway · port 3080
+      <div class="sub">ubuntu-gateway 镜像 · Node.js TS · "thin HTTP router"</div>
+    </div>
+    <div class="arrow">↓ Postgres 查 chat_routes 表</div>
+    <div class="box" style="background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue)">
+      tenant-postgres · localhost:5432
+      <div class="sub">tenants · agents · chat_routes · 6 张表 SSOT</div>
+    </div>
+    <div class="arrow">↓ proxy 到 hash(tenant:agent) % 200 + 18800</div>
+    <div class="row">
+      <div class="box" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-size:12px">Cetus-tenant-01:18xxx</div>
+      <div class="box" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-size:12px">Cetus-tenant-02:18xxx</div>
+      <div class="box" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-size:12px">Cetus-tenant-03:18xxx</div>
+      <div class="box" style="background:var(--muted);color:var(--bg);font-size:12px">... ×22 总</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>tenant-gateway · "thin" 是关键</h2>
+
+  <p>主 gateway 的设计目标 = <strong>路由层零业务、零状态</strong>。它只做四件事：</p>
+
+  <div class="vflow">
+    <div class="vstep">
+      <div class="n">1</div>
+      <div class="body"><strong>收 webhook</strong><div class="h">IM platform / Slack POST 到 /webhook/lark 或 /slack/events</div></div>
+      <div class="tag">HTTP</div>
+    </div>
+    <div class="vstep">
+      <div class="n">2</div>
+      <div class="body"><strong>验签 + 解 chat_id</strong><div class="h">parseLarkWebhook(body) / parseSlackWebhook(body) → 拿 (platform, chat_id, sender_id, text)</div></div>
+      <div class="tag">verify</div>
+    </div>
+    <div class="vstep green">
+      <div class="n">3</div>
+      <div class="body"><strong>查 routeCache</strong><div class="h">routeCache.get(`${platform}:${chat_id}`) → agent_slug + container port</div></div>
+      <div class="tag cache">Map</div>
+    </div>
+    <div class="vstep">
+      <div class="n">4</div>
+      <div class="body"><strong>proxy 转发</strong><div class="h">createProxyToAgent() → http://localhost:18xxx/webhook (透传 body / headers)</div></div>
+      <div class="tag">proxy</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>"thin"的回报：</strong> 因为只是 routing，<code>tenant-gateway</code> 容器极轻量、可水平扩展、重启秒级。所有业务（LLM 调用、记忆、工具）在<strong>租户容器</strong>里跑 —— 升级一个租户不影响其他。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>routeCache · 30 秒内存窗</h2>
+
+  <p>不可能每条消息都查 DB —— routeCache 是 in-memory Map：</p>
+
+  <pre><span class="key">let</span> routeCache = <span class="key">new</span> Map();    <span class="com">// 初始空</span>
+
+<span class="key">async function</span> refreshRouteCache() {
+  <span class="key">const</span> rows = <span class="key">await</span> pool.query(<span class="str">`
+    SELECT platform, chat_id, agent_slug, agent_port, tenant_slug
+    FROM chat_routes JOIN agents USING (agent_id)
+  `</span>);
+  <span class="key">const</span> newCache = <span class="key">new</span> Map();
+  <span class="key">for</span> (<span class="key">const</span> r <span class="key">of</span> rows) {
+    newCache.set(<span class="str">`${r.platform}:${r.chat_id}`</span>, r);
+  }
+  routeCache = newCache;    <span class="com">// 原子替换</span>
+}
+
+setInterval(refreshRouteCache, <span class="num">30_000</span>);    <span class="com">// 30 秒刷一次</span></pre>
+
+  <p>几个设计要点：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">原子替换</strong> · 不是逐条更新 Map，而是构造完整新 Map 再 <code>routeCache = newCache</code> —— 中间状态对外不可见</li>
+    <li><strong style="color:var(--text)">30s 窗口</strong> · 新增 chat 路由后最多 30s 才生效 —— 是"快得够用、不占 DB"的折中</li>
+    <li><strong style="color:var(--text)">不持久</strong> · gateway 重启就丢，但 30s 内重建。冷启动可能丢前 30s 消息（实际看 health 等 cache 满才返 200）</li>
+    <li><strong style="color:var(--text)">不淘汰策略</strong> · 全表加载，因为 chat_routes 一般 &lt; 1000 行</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>DB Schema · 6 张表</h2>
+
+  <p>全部在 tenant-postgres 单实例，schema 在 <code>init.sql</code>：</p>
+
+  <div class="schema-grid">
+    <div class="table-box"><div class="tn">tenants</div><div class="td">客户组织。<strong style="color:var(--text)">name / slug / config JSONB</strong>。config 里放每家自己的 IM App ID、品牌色等</div></div>
+    <div class="table-box"><div class="tn">agents</div><div class="td">AI agent 实例。一个 tenant 可以有多个 agent（业务场景：客服 / 数据 / 内容审核 各一个）</div></div>
+    <div class="table-box routes"><div class="tn">chat_routes</div><div class="td"><strong style="color:var(--text)">(platform, chat_id) → agent</strong>。这是 routeCache 的源。同一个 chat 只能绑一个 agent</div></div>
+    <div class="table-box skills"><div class="tn">tenant_skills</div><div class="td">per-tenant skill 权限。某 tenant 能用哪些 skill，是否定制版</div></div>
+    <div class="table-box skills"><div class="tn">default_skills</div><div class="td">skill 总目录 · <strong style="color:var(--text)">is_default</strong> 标的 skill 新 tenant 自动获得</div></div>
+    <div class="table-box audit"><div class="tn">file_audit</div><div class="td">tenant workspace 文件改动日志 · 用于安全审计 / 调试</div></div>
+  </div>
+
+  <div class="callout warn">
+    <strong>没有 RBAC / auth 系统：</strong> Admin API 全部在 <code>/api/*</code>，README 直接写 "no auth yet — TODO"。当前靠 <strong>Cloudflare Tunnel 限定 IP</strong>（tenant-admin.the-company-ai.com 只能 the company 内网访问）。生产 SaaS 要补 auth。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>端口分配 · 确定性哈希</h2>
+
+  <p>22 个租户容器，每个要绑 webhook 端口。要么手动分（容易冲突 / 难记），要么<strong>确定性哈希</strong>：</p>
+
+  <pre><span class="key">function</span> agentPort(tenantSlug, agentSlug) {
+  <span class="key">const</span> h = sha256(<span class="str">`${tenantSlug}:${agentSlug}`</span>);
+  <span class="key">return</span> <span class="num">18800</span> + (parseInt(h.slice(<span class="num">0</span>, <span class="num">8</span>), <span class="num">16</span>) % <span class="num">200</span>);
+}
+<span class="com">// 18800-18999 范围，200 个槽位</span></pre>
+
+  <p>性质：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">同 (tenant, agent) → 同端口</strong> · 重新启动容器端口不变，gateway 不用 reload</li>
+    <li><strong style="color:var(--text)">200 个槽位</strong> · 22 个用了 11%，碰撞概率近似生日悖论 ~16%（理论上）</li>
+    <li><strong style="color:var(--text)">实际碰撞处理</strong> · 检测 isPortListening(port) 已占 → 找下一个空槽位（线性探查）</li>
+    <li><strong style="color:var(--text)">写入 DB</strong> · 最终端口在 agents 表 agent_port 列，gateway 查 routeCache 拿真实端口（不每次重哈希）</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>22 个租户 · 线上实测</h2>
+
+  <div class="evidence">
+$ ssh ... aws ssm send-command -i <EC2-B>
+  --parameters "commands=docker ps | grep Cetus"
+
+22 × Cetus-{tenant} (image: the-platform/tenant-gateway:cb2be4f60..., Up 3 days)
+1 × tenant-gateway (image: ubuntu-gateway, Up 2 days)
+1 × tenant-postgres (Up 2 days)
+19 × Cetus-{tenant}-nanobot (Python, Up 7 days)
+1 × tenant-test-nanobot (test)
+1 × tenant-15-nanobot (Up 7h, image the-platform/nanobot-agent:latest)
+  </div>
+
+  <div class="tenant-grid">
+    <div class="tenant"><span>tenant-04</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-06</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-07</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-08</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-09</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-05</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-10</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-11</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-12</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-13</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-14</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>manus</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-16</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-17</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-02</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-18</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-19</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-03</span><span class="pair-label">G+N</span></div>
+    <div class="tenant"><span>tenant-01</span><span class="pair-label">G+N</span></div>
+    <div class="tenant orphan"><span>tenant-20</span><span class="pair-label">⚠ G only</span></div>
+    <div class="tenant orphan"><span>tenant-21</span><span class="pair-label">⚠ G only</span></div>
+    <div class="tenant orphan"><span>tenant-22</span><span class="pair-label">⚠ G only</span></div>
+  </div>
+
+  <p style="margin-top:14px;color:var(--muted);font-size:12.5px">G = TS gateway · N = Python nanobot · 22 个 gateway / 19 个 nanobot · 3 个孤儿（tenant-20 / tenant-21 / tenant-22）只有 gateway，不知道为什么没起 nanobot —— 可能在 onboarding 中。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>JuiceFS · 跨容器持久化</h2>
+
+  <p>每个 tenant 容器都<strong>无状态</strong> —— 数据全在 <code>/jfs/tenants/the-company/{slug}/</code>：</p>
+
+  <div class="table">
+    <div class="trow head"><div>路径</div><div>用途</div></div>
+    <div class="trow"><div class="tk">/jfs/tenants/the-company/{slug}/workspace/</div><div class="td">tenant 的 nanobot workspace · SOUL.md / MEMORY.md / 自定义 skills</div></div>
+    <div class="trow"><div class="tk">/jfs/tenants/the-company/{slug}/state/openclaw.json</div><div class="td">老 OpenClaw 栈的 state · 一些 tenant 仍跑 OpenClaw</div></div>
+    <div class="trow"><div class="tk">/jfs/shared/skills/</div><div class="td">所有 tenant 共享的 default skills</div></div>
+  </div>
+
+  <p>JuiceFS 的关键特性：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">S3 backend</strong> · 实际数据在 S3，本机只是缓存 + 元数据</li>
+    <li><strong style="color:var(--text)">PostgreSQL 元数据</strong> · 文件元信息在 PG（同一台 tenant-postgres，但<strong>不同库</strong>）</li>
+    <li><strong style="color:var(--text)">容器重启不丢</strong> · 数据落 S3</li>
+    <li><strong style="color:var(--text)">EC2 换机不丢</strong> · 把 JuiceFS 挂载到新机就还在</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>Admin API · 一行命令开 tenant</h2>
+
+  <p>Cetus 设计上鼓励"一行加新 tenant"。<code>/opt/Cetus/infra/deploy-agent.sh</code> 干这事：</p>
+
+  <pre>$ /opt/Cetus/infra/deploy-agent.sh \
+    --client <span class="str">"NewCustomer"</span> --slug <span class="str">"newcust"</span> \
+    --agent-slug <span class="str">"newcust-external"</span> \
+    --slack-channels <span class="str">"C123,C456"</span></pre>
+
+  <p>背后做的事（手动版的步骤）：</p>
+
+  <div class="vflow">
+    <div class="vstep">
+      <div class="n">1</div>
+      <div class="body"><strong>POST /api/tenants {name, slug}</strong><div class="h">建 tenants 记录 · 自动 seed default_skills 到 tenant_skills（每个 is_default=true 的 skill）</div></div>
+      <div class="tag db">DB</div>
+    </div>
+    <div class="vstep">
+      <div class="n">2</div>
+      <div class="body"><strong>POST /api/agents {tenant_id, slug, name}</strong><div class="h">建 agents 记录 · 算 hash(tenant:agent) → 分配 port → 写 agent_port</div></div>
+      <div class="tag db">DB</div>
+    </div>
+    <div class="vstep">
+      <div class="n">3</div>
+      <div class="body"><strong>创建 JuiceFS 目录</strong><div class="h">mkdir /jfs/tenants/the-company/newcust/{workspace, state} · 写默认 SOUL.md / openclaw.json</div></div>
+      <div class="tag">FS</div>
+    </div>
+    <div class="vstep">
+      <div class="n">4</div>
+      <div class="body"><strong>docker run --name Cetus-newcust ...</strong><div class="h">挂 JuiceFS 卷 + 端口 + tenant env → 启动 the-platform/tenant-gateway 容器</div></div>
+      <div class="tag">docker</div>
+    </div>
+    <div class="vstep green">
+      <div class="n">5</div>
+      <div class="body"><strong>POST /api/routes (×N)</strong><div class="h">每个 (slack_channel / lark_chat_id, agent_id) 写 chat_routes —— 30s 后 routeCache 自动 pick up</div></div>
+      <div class="tag db">DB</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>关键：</strong> 加新 tenant 不重启 tenant-gateway —— DB 写完，下次 routeCache 刷新就识别新路由。这是"<strong>SSOT + cache</strong>"模式的运维红利。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>Slack 双协议 · 一份 gateway 收两边</h2>
+
+  <p>tenant-gateway 同时支持 IM platform 和 Slack —— 不是俩独立 gateway，而是<strong>同一进程两种 parser</strong>：</p>
+
+  <pre><span class="com">// 一份代码同时处理</span>
+<span class="key">function</span> parseLarkWebhook(body) {
+  <span class="com">// IM platform event_v2 格式 → 统一 (platform, chat_id, sender_id, text)</span>
+}
+
+<span class="key">function</span> parseSlackWebhook(body) {
+  <span class="com">// Slack Events API 格式 → 同上</span>
+}
+
+<span class="key">function</span> verifySlackSignature(rawBody, timestamp, signature) {
+  <span class="com">// HMAC-SHA256 with SLACK_SIGNING_SECRET</span>
+}</pre>
+
+  <p>设计简洁：把两个平台的差异收敛到 parse 阶段，<strong>路由和后续逻辑共用一套</strong>。chat_routes 表的 platform 列区分（"lark" / "slack"），routeCache key 就是 <code>"slack:C012345"</code> 或 <code>"lark:oc_abcdef"</code>。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>对比 Agent fleet · 两套理念</h2>
+
+  <div class="table">
+    <div class="trow head"><div>维度</div><div>Agent fleet vs Cetus</div></div>
+    <div class="trow">
+      <div class="tk">租户单位</div>
+      <div class="td">Athena: 13 bot "分身"，全是 the company 自家人格<br>Cetus: <strong>22+ 客户公司</strong>，每家可能多个 agent</div>
+    </div>
+    <div class="trow">
+      <div class="tk">配置存储</div>
+      <div class="td">Athena: 一份 <code>nanobot-fleet.json</code> + git<br>Cetus: <strong>PostgreSQL 6 表</strong>，Admin API 可改</div>
+    </div>
+    <div class="trow">
+      <div class="tk">路由方式</div>
+      <div class="td">Athena: 每个 bot 自己的 IM App，独立 webhook URL<br>Cetus: <strong>一个总 gateway + chat_routes 表</strong>动态分发</div>
+    </div>
+    <div class="trow">
+      <div class="tk">隔离</div>
+      <div class="td">Athena: 文件级（不同 skin 目录），但共享 workspace<br>Cetus: <strong>JuiceFS 路径隔离</strong> + 容器隔离 + DB 行级隔离</div>
+    </div>
+    <div class="trow">
+      <div class="tk">部署</div>
+      <div class="td">Athena: 一次 docker pull 全员升级<br>Cetus: <strong>每个租户独立容器</strong>，可滚动升级</div>
+    </div>
+    <div class="trow">
+      <div class="tk">运行时</div>
+      <div class="td">Athena: 全 Python nanobot<br>Cetus: <strong>TypeScript gateway + 老 OpenClaw / 新 nanobot 共存</strong>（迁移中）</div>
+    </div>
+    <div class="trow">
+      <div class="tk">扩展性</div>
+      <div class="td">Athena: 加新 bot 改 fleet.json + 部署<br>Cetus: <strong>一行 deploy-agent.sh</strong>，运行时加</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>关键区别：</strong> Athena 是<strong>静态配置驱动</strong>（fleet.json 是 ground truth），Cetus 是<strong>DB-driven 动态租户</strong>（chat_routes 是 ground truth + 30s cache）。Athena 适合"自家分身"，Cetus 适合"SaaS 业务"。
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">project-legacy/Cetus/</code>（gateway TS / config / docker-compose / init.sql）<br>
+    线上 · Cetus EC2 <EC2-B> (r7i.xlarge, us-east-1b) · 22 tenant 容器全 healthy · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>the company Agent 架构 · 功能模块图</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card-2: #1c2230;
+    --card-3: #232a3a;
+    --border: #2a3142;
+    --border-strong: #3a4256;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #ff8c42;
+    --accent-2: #ffb380;
+    --accent-dim: rgba(255, 140, 66, 0.12);
+    --green: #3fb950;
+    --green-dim: rgba(63, 185, 80, 0.15);
+    --yellow: #d29922;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --blue-dim: rgba(88, 166, 255, 0.12);
+    --purple: #bc8cff;
+    --purple-dim: rgba(188, 140, 255, 0.12);
+    --pink: #ff7eb6;
+    --pink-dim: rgba(255, 126, 182, 0.12);
+    --cyan: #56d4dd;
+    --cyan-dim: rgba(86, 212, 221, 0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    line-height: 1.6;
+    font-size: 14.5px;
+  }
+  .container {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 28px 80px;
+  }
+
+  /* Hero */
+  .hero h1 {
+    font-size: 30px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  .hero .sub {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+
+  .lead {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin-bottom: 8px;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .lead strong { color: var(--accent); font-weight: 600; }
+
+  /* Section */
+  h2.section {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 48px 0 18px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2.section .num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+
+  /* Two platforms */
+  .platforms {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 820px) { .platforms { grid-template-columns: 1fr; } }
+
+  .platform {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .platform::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .platform.Athena::before { background: var(--accent); }
+  .platform.Cetus::before { background: var(--blue); }
+  .platform h3 {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .platform .role {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-bottom: 16px;
+  }
+  .platform .field {
+    margin-top: 12px;
+  }
+  .platform .label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .platform .value {
+    font-size: 14px;
+    color: var(--text);
+  }
+  .platform.Athena .accent-text { color: var(--accent); font-weight: 500; }
+  .platform.Cetus .accent-text { color: var(--blue); font-weight: 500; }
+
+  /* Module diagram */
+  .module-diagram {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 32px 28px;
+  }
+  .layer {
+    margin-bottom: 8px;
+  }
+  .layer-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .module {
+    background: var(--card-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 14px 18px;
+    min-width: 150px;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .module:hover {
+    background: var(--card-3);
+    transform: translateY(-1px);
+  }
+  .module-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .module-desc {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+  /* Module variants by color */
+  .module.entry { border-color: var(--cyan); background: var(--cyan-dim); }
+  .module.entry .module-title { color: var(--cyan); }
+  .module.route { border-color: var(--accent); background: var(--accent-dim); }
+  .module.route .module-title { color: var(--accent); }
+  .module.persona { border-color: var(--purple); background: var(--purple-dim); }
+  .module.persona .module-title { color: var(--purple); }
+  .module.memory { border-color: var(--blue); background: var(--blue-dim); }
+  .module.memory .module-title { color: var(--blue); }
+  .module.tools { border-color: var(--green); background: var(--green-dim); }
+  .module.tools .module-title { color: var(--green); }
+  .module.brain { border-color: var(--pink); background: var(--pink-dim); }
+  .module.brain .module-title { color: var(--pink); }
+  .module.output { border-color: var(--yellow); background: rgba(210,153,34,0.12); }
+  .module.output .module-title { color: var(--yellow); }
+
+  .arrow-down {
+    text-align: center;
+    color: var(--muted);
+    font-size: 18px;
+    margin: 8px 0;
+    user-select: none;
+  }
+
+  /* Bot envelope */
+  .bot-envelope {
+    border: 1px dashed var(--border-strong);
+    border-radius: 10px;
+    padding: 18px;
+    margin: 6px 0;
+    position: relative;
+  }
+  .bot-envelope-label {
+    position: absolute;
+    top: -10px;
+    left: 16px;
+    background: var(--card);
+    padding: 0 8px;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Conversation flow */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+  .step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    position: relative;
+  }
+  .step-num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .step-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .step-detail {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* Compare table */
+  .compare {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .compare-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-row:last-child { border-bottom: none; }
+  .compare-row.head {
+    background: var(--card-2);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .compare-cell {
+    padding: 14px 18px;
+    border-right: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .compare-cell:last-child { border-right: none; }
+  .compare-cell .accent-orange { color: var(--accent); font-weight: 500; }
+  .compare-cell .accent-blue { color: var(--blue); font-weight: 500; }
+  .compare-cell.label {
+    color: var(--muted);
+    font-size: 12.5px;
+    background: rgba(255,255,255,0.02);
+    font-weight: 500;
+  }
+
+  /* Duo (gateway + nanobot pair) */
+  .duo {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: stretch;
+    margin: 12px 0 24px;
+  }
+  @media (max-width: 720px) {
+    .duo { grid-template-columns: 1fr; }
+    .duo-arrow { transform: rotate(90deg); }
+  }
+  .duo-side {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+  }
+  .duo-side.gateway { border-top: 3px solid var(--cyan); }
+  .duo-side.nanobot { border-top: 3px solid var(--pink); }
+  .duo-side .label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .duo-side .title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .duo-side.gateway .title { color: var(--cyan); }
+  .duo-side.nanobot .title { color: var(--pink); }
+  .duo-side .role {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-bottom: 12px;
+  }
+  .duo-side ul {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .duo-side ul li { color: var(--text); }
+  .duo-arrow {
+    align-self: center;
+    text-align: center;
+    color: var(--muted);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+  }
+  .duo-arrow .line {
+    font-size: 22px;
+    color: var(--accent);
+    line-height: 1;
+  }
+
+  /* Reasons grid */
+  .reasons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .reason {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .reason h4 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .reason p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  /* Cluster diagrams */
+  .cluster {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .cluster-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .cluster-sub {
+    color: var(--muted);
+    font-size: 12.5px;
+    margin-bottom: 18px;
+  }
+  .cluster-sub strong { color: var(--accent); }
+  .cluster-sub strong.blue { color: var(--blue); }
+
+  /* Athena fan-out */
+  .fan {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .fan-top {
+    background: var(--cyan-dim);
+    border: 1px solid var(--cyan);
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: var(--cyan);
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    min-width: 240px;
+  }
+  .fan-top .sub {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 11.5px;
+    margin-top: 2px;
+  }
+  .fan-arrows {
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    text-align: center;
+    margin-top: 6px;
+  }
+  .fan-bottom {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .nano-chip {
+    background: var(--pink-dim);
+    border: 1px solid var(--pink);
+    border-radius: 6px;
+    padding: 7px 10px;
+    color: var(--pink);
+    text-align: center;
+    font-size: 11.5px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 500;
+  }
+  .nano-chip.muted {
+    background: var(--card-2);
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  /* Cetus router + per-tenant pairs */
+  .Cetus-router {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    min-width: 280px;
+    margin: 0 auto 6px;
+  }
+  .Cetus-router .sub {
+    color: var(--muted);
+    font-weight: 400;
+    font-size: 11.5px;
+    margin-top: 2px;
+  }
+  .Cetus-tenants {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .tenant-pair {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 4px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10.5px;
+  }
+  .tenant-pair .g {
+    background: var(--cyan-dim);
+    color: var(--cyan);
+    border-radius: 4px;
+    padding: 4px 6px;
+    text-align: center;
+    font-weight: 500;
+  }
+  .tenant-pair .n {
+    background: var(--pink-dim);
+    color: var(--pink);
+    border-radius: 4px;
+    padding: 4px 6px;
+    text-align: center;
+    font-weight: 500;
+  }
+  .tenant-pair .arr {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .tenant-pair.orphan .n {
+    background: rgba(125, 133, 144, 0.1);
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+
+  /* Feature cards */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .feature {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .feature-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .feature-title .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .feature.purple .dot { background: var(--purple); }
+  .feature.blue .dot { background: var(--blue); }
+  .feature.green .dot { background: var(--green); }
+  .feature.orange .dot { background: var(--accent); }
+  .feature-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .footer {
+    margin-top: 56px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  .footer a { color: var(--muted); text-decoration: underline; }
+
+  /* User message bubble for flow */
+  .bubble {
+    background: var(--card-2);
+    border-radius: 12px;
+    padding: 12px 18px;
+    text-align: center;
+    font-size: 13px;
+    margin: 0 auto;
+    max-width: 380px;
+    color: var(--muted);
+  }
+  .bubble strong { color: var(--text); }
+
+  /* ============================================================
+     SITE SHELL · nav + sidebar + search (added 2026-05-13)
+     ============================================================ */
+  .site-nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: rgba(13, 17, 23, 0.82);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 18px;
+    z-index: 100;
+  }
+  .nav-back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .nav-back:hover { background: var(--card); color: var(--text); }
+  .nav-title {
+    flex: 1;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nav-title .dim { color: var(--muted); font-weight: 400; margin: 0 6px; }
+  .nav-search {
+    position: relative;
+    width: 280px;
+    flex-shrink: 0;
+  }
+  .nav-search input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 12px 7px 32px;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .nav-search input::placeholder { color: var(--muted); }
+  .nav-search input:focus { border-color: var(--accent); }
+  .nav-search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  .nav-kbd {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--card-2);
+    color: var(--muted);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    pointer-events: none;
+  }
+  @media (max-width: 700px) {
+    .nav-search { width: 160px; }
+    .nav-title { display: none; }
+    .nav-kbd { display: none; }
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    padding-top: 56px;
+    min-height: 100vh;
+  }
+  @media (max-width: 920px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+  }
+  .sidebar {
+    position: sticky;
+    top: 56px;
+    align-self: start;
+    height: calc(100vh - 56px);
+    overflow-y: auto;
+    padding: 28px 16px;
+    border-right: 1px solid var(--border);
+  }
+  .sidebar-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding: 0 12px;
+    font-weight: 600;
+  }
+  .toc-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 2px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    margin-left: -2px;
+  }
+  .toc-item:hover { background: var(--card); color: var(--text); }
+  .toc-item.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+  .toc-num {
+    display: inline-block;
+    width: 16px;
+    color: var(--muted);
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .toc-item.active .toc-num { color: var(--accent); }
+  .toc-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 10px 12px;
+  }
+
+  .page-content { min-width: 0; }
+  .layout .container {
+    max-width: 920px;
+    padding: 36px 36px 80px;
+    margin: 0;
+  }
+
+  .section-block.hidden { display: none; }
+  .section-block { scroll-margin-top: 72px; }
+
+  .back-to-top {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 42px;
+    height: 42px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.2s;
+    z-index: 50;
+    font-family: inherit;
+  }
+  .back-to-top.show { opacity: 1; pointer-events: auto; }
+  .back-to-top:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .no-results {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+  .no-results-icon {
+    font-size: 28px;
+    color: var(--border-strong);
+    margin-bottom: 12px;
+  }
+
+  mark.hit {
+    background: rgba(255, 140, 66, 0.32);
+    color: var(--accent);
+    border-radius: 2px;
+    padding: 0 2px;
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="index.html" class="nav-back">← 合集首页</a>
+  <div class="nav-title">the company Agent 架构 <span class="dim">/</span> 功能模块图</div>
+  <div class="nav-search">
+    <span class="nav-search-icon">⌕</span>
+    <input type="text" id="page-search" placeholder="搜索本页内容..." autocomplete="off" />
+    <span class="nav-kbd">⌘K</span>
+  </div>
+  <button id="lang-toggle" class="nav-back" title="切换语言 / Toggle language" style="cursor:pointer; border:none; background:transparent; font-family:inherit;">EN</button>
+</nav>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-label" data-i18n="toc.label">本页目录</div>
+    <a href="#sec-1" class="toc-item"><span class="toc-num">1</span><span data-i18n="toc.s1">两个平台</span></a>
+    <a href="#sec-2" class="toc-item"><span class="toc-num">2</span><span data-i18n="toc.s2">Bot 内部模块</span></a>
+    <a href="#sec-3" class="toc-item"><span class="toc-num">3</span><span data-i18n="toc.s3">对话流程</span></a>
+    <a href="#sec-4" class="toc-item"><span class="toc-num">4</span><span data-i18n="toc.s4">Athena / Cetus 对照</span></a>
+    <a href="#sec-5" class="toc-item"><span class="toc-num">5</span><span data-i18n="toc.s5">双容器协作</span></a>
+    <a href="#sec-6" class="toc-item"><span class="toc-num">6</span><span data-i18n="toc.s6">关键特性</span></a>
+  </aside>
+
+  <main class="page-content">
+    <div class="container">
+
+  <div class="hero">
+    <h1>the company Agent 平台 · 功能模块图</h1>
+    <div class="sub">从"系统在做什么"出发，看清楚每个功能模块的位置和关系</div>
+  </div>
+
+  <div class="lead">
+    the company 把 AI 塞进 <strong>IM 群</strong>，让它像团队成员一样工作 —— 你 @ 它一句话，它能查数据、写报告、回邮件、调内部系统。<br>
+    平台分两条线：<strong>Athena 系列</strong>是给公司内部团队用的"AI 同事"（Athena / Echo / 11 个产品分身）；<strong>Cetus</strong> 把同样的能力封装成 SaaS 卖给外部客户（22+ 个租户）。
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">1</span>两个平台 · 服务对象与形态</h2>
+
+  <div class="platforms">
+    <div class="platform Athena">
+      <h3>Athena 系列</h3>
+      <div class="role">内部 AI 同事 · For the company team</div>
+
+      <div class="field">
+        <div class="label">服务谁</div>
+        <div class="value">公司内部各部门的 IM 群</div>
+      </div>
+      <div class="field">
+        <div class="label">解决什么</div>
+        <div class="value">把"问数据 / 跑分析 / 整理资料"这类高频琐事交给 AI，让人聚焦决策</div>
+      </div>
+      <div class="field">
+        <div class="label">角色单位</div>
+        <div class="value"><span class="accent-text">一个 bot = 一个分身</span>（不同人格、不同擅长）<br><span style="color: var(--muted); font-size: 12.5px;">Athena（主力） · Echo · skin-07 · skin-06 · skin-01 · skin-05 · ...</span></div>
+      </div>
+      <div class="field">
+        <div class="label">形态</div>
+        <div class="value">所有 bot 同居一台服务器，<span class="accent-text">共享基础设施</span></div>
+      </div>
+    </div>
+
+    <div class="platform Cetus">
+      <h3>Cetus</h3>
+      <div class="role">多租户 SaaS · For external customers</div>
+
+      <div class="field">
+        <div class="label">服务谁</div>
+        <div class="value">外部客户公司（每家自己的 IM 工作区）</div>
+      </div>
+      <div class="field">
+        <div class="label">解决什么</div>
+        <div class="value">把 Athena 的能力打包卖出去，客户在自己 IM platform 里用"我们家的 AI 助手"</div>
+      </div>
+      <div class="field">
+        <div class="label">角色单位</div>
+        <div class="value"><span class="accent-blue">一个租户 = 一家客户</span>（独立配置、独立数据）<br><span style="color: var(--muted); font-size: 12.5px;">tenant-01 · tenant-02 · tenant-03 · tenant-04 · ...</span></div>
+      </div>
+      <div class="field">
+        <div class="label">形态</div>
+        <div class="value">多租户在同一台服务器，<span class="accent-blue">数据 / 配置严格隔离</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">2</span>一个 Bot 内部 · 功能模块图</h2>
+
+  <div class="module-diagram">
+
+    <div class="bubble">用户在 IM 群 <strong>@bot</strong> 发问题</div>
+    <div class="arrow-down">↓</div>
+
+    <div class="layer">
+      <div class="layer-row">
+        <div class="module entry">
+          <div class="module-title">接入层</div>
+          <div class="module-desc">接收 IM webhook<br>签名校验 + 去重</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down">↓</div>
+
+    <div class="layer">
+      <div class="layer-row">
+        <div class="module route">
+          <div class="module-title">路由 / 分发</div>
+          <div class="module-desc">认出消息属于哪个 bot 或租户<br>分到对应的实例处理</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-down">↓</div>
+
+    <div class="bot-envelope">
+      <div class="bot-envelope-label">Bot 实例（每个 bot / 每个租户独立）</div>
+
+      <div class="layer">
+        <div class="layer-row">
+          <div class="module persona">
+            <div class="module-title">人格</div>
+            <div class="module-desc">这个 bot 是谁、说话风格、能做什么<br>用 system prompt 定义</div>
+          </div>
+          <div class="module memory">
+            <div class="module-title">记忆</div>
+            <div class="module-desc">长期：用户偏好、历史结论<br>短期：当前对话上下文</div>
+          </div>
+          <div class="module tools">
+            <div class="module-title">工具</div>
+            <div class="module-desc">查数据库、调 API、读写文件<br>每个 bot 有自己的工具集</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arrow-down">↓</div>
+
+      <div class="layer">
+        <div class="layer-row">
+          <div class="module brain">
+            <div class="module-title">思考引擎</div>
+            <div class="module-desc">把"人格 + 记忆 + 工具 + 当前问题"组装<br>交给 LLM（Claude / GPT）推理，循环调用工具</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+
+    <div class="layer">
+      <div class="layer-row">
+        <div class="module output">
+          <div class="module-title">输出层</div>
+          <div class="module-desc">把答案 / 卡片 / 文件回发到 IM 群<br>同时把这轮对话写入记忆</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓</div>
+    <div class="bubble">用户在 IM platform 群看到回复 ✓</div>
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">3</span>一次对话 · 走过的步骤</h2>
+
+  <div class="flow">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-title">用户提问</div>
+      <div class="step-detail">在 IM platform 群里 @bot：「帮我看一下 X 数据」</div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-title">平台收消息</div>
+      <div class="step-detail">IM platform 推 webhook 到平台入口，验明身份</div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-title">认出是谁的活</div>
+      <div class="step-detail">路由层根据消息来源决定交给哪个 bot</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-title">加载身份</div>
+      <div class="step-detail">读取这个 bot 的人格 prompt + 历史记忆</div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-title">交给 LLM</div>
+      <div class="step-detail">把上下文 + 工具清单一起喂给思考引擎</div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-title">调工具</div>
+      <div class="step-detail">查数据库 / 调 API / 跑脚本，可能反复多轮</div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-title">合成答案</div>
+      <div class="step-detail">LLM 把工具结果整理成自然语言回复</div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-title">发回 IM platform</div>
+      <div class="step-detail">用户看到回复；本轮对话写入记忆，供下次用</div>
+    </div>
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">4</span>Athena 与 Cetus · 形态对照</h2>
+
+  <div class="compare">
+    <div class="compare-row head">
+      <div class="compare-cell">维度</div>
+      <div class="compare-cell">Athena 系列</div>
+      <div class="compare-cell">Cetus</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">服务对象</div>
+      <div class="compare-cell"><span class="accent-orange">内部团队</span>，the company 自己人</div>
+      <div class="compare-cell"><span class="accent-blue">外部客户</span>，付费 SaaS</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">角色单位</div>
+      <div class="compare-cell">一个 bot = 一个产品分身（Athena / Echo / skin-07 ...）</div>
+      <div class="compare-cell">一个租户 = 一家客户公司（tenant-01 / tenant-02 ...）</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">配置怎么来</div>
+      <div class="compare-cell">写在代码仓库里，每个 bot 一份配置文件</div>
+      <div class="compare-cell">存在数据库，通过后台管理界面配</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">路由方式</div>
+      <div class="compare-cell">静态 —— 每个 bot 在 IM platform 一个独立应用</div>
+      <div class="compare-cell">动态 —— 一个总入口，按租户分发</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">数据隔离</div>
+      <div class="compare-cell">bot 之间共享基础数据，部分隔离</div>
+      <div class="compare-cell">租户之间数据 / 配额 / 记忆完全隔离</div>
+    </div>
+    <div class="compare-row">
+      <div class="compare-cell label">规模</div>
+      <div class="compare-cell">~13 个 bot</div>
+      <div class="compare-cell">22+ 租户（持续增长）</div>
+    </div>
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">5</span>双容器协作 · gateway 与 nanobot</h2>
+
+  <div class="lead" style="margin-bottom: 18px;">
+    前面讲的"一个 Bot"在实际部署里其实由<strong>两个容器</strong>配合：<strong>gateway</strong> 管"门"，<strong>nanobot</strong> 管"脑"。一个接消息分发，一个负责思考和执行。
+  </div>
+
+  <!-- 单体双容器 -->
+  <div class="duo">
+    <div class="duo-side gateway">
+      <div class="label">接收 / 路由</div>
+      <div class="title">gateway</div>
+      <div class="role">站在 IM platform 入口处的"门面"</div>
+      <ul>
+        <li>接收 IM webhook 推送</li>
+        <li>校验签名、过滤重复消息</li>
+        <li>识别消息属于哪个 bot / 租户</li>
+        <li>把请求转给对应的 nanobot</li>
+        <li>把 nanobot 的回复发回 IM platform</li>
+      </ul>
+    </div>
+    <div class="duo-arrow">
+      <div class="line">⇆</div>
+      <div>内网 HTTP</div>
+    </div>
+    <div class="duo-side nanobot">
+      <div class="label">思考 / 执行</div>
+      <div class="title">nanobot</div>
+      <div class="role">真正"动脑"的部分</div>
+      <ul>
+        <li>加载这个 bot 的人格 prompt</li>
+        <li>读取长期记忆和对话历史</li>
+        <li>调用 LLM 推理</li>
+        <li>调工具拿数据、跑分析</li>
+        <li>组装答案，让 gateway 送出去</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 为什么这么分 -->
+  <div class="reasons">
+    <div class="reason">
+      <h4>关注点分离</h4>
+      <p>gateway 只做"门面"工作（协议、签名、路由），nanobot 专心"业务"（思考、记忆、工具）。两边代码不打架。</p>
+    </div>
+    <div class="reason">
+      <h4>故障隔离</h4>
+      <p>nanobot 升级 / 慢 / 崩了，gateway 还能继续接消息、排队、回降级提示，不会丢请求。</p>
+    </div>
+    <div class="reason">
+      <h4>独立扩展</h4>
+      <p>gateway 轻量好水平扩；nanobot 重（要持有记忆、长上下文），独立部署独立调资源。</p>
+    </div>
+    <div class="reason">
+      <h4>选最顺手的工具</h4>
+      <p>gateway 用 TypeScript（IM platform SDK / webhook 生态成熟），nanobot 用 Python（LLM / 工具调用生态成熟）。</p>
+    </div>
+  </div>
+
+  <!-- Athena 模式 -->
+  <div class="cluster">
+    <div class="cluster-title">Athena 模式 · <span style="color: var(--accent)">共享 gateway → per-bot nanobot</span></div>
+    <div class="cluster-sub">所有内部 bot 共用一组 gateway，再分发到自己专属的 nanobot。bot 之间像住在<strong>同一栋楼</strong>的同事 —— 公共大门一个，每人有自己的工位。</div>
+
+    <div class="fan">
+      <div class="fan-top">
+        共享 gateway 层
+        <div class="sub">agent-gateway · agent-primary-prod · agent-fin-prod ...</div>
+      </div>
+      <div class="fan-arrows">↓ &nbsp;↓ &nbsp;↓ &nbsp;↓ &nbsp;↓ &nbsp;↓</div>
+      <div class="fan-bottom">
+        <div class="nano-chip">agent-primary</div>
+        <div class="nano-chip">echo-agent</div>
+        <div class="nano-chip">skin-07-nanobot</div>
+        <div class="nano-chip">skin-06-nanobot</div>
+        <div class="nano-chip">skin-05-nanobot</div>
+        <div class="nano-chip">skin-01-nanobot</div>
+        <div class="nano-chip">tian-nanobot</div>
+        <div class="nano-chip">skin-08-nanobot</div>
+        <div class="nano-chip">skin-11-nanobot</div>
+        <div class="nano-chip">skin-04-nanobot</div>
+        <div class="nano-chip">skin-03-nanobot</div>
+        <div class="nano-chip">skin-02-nanobot</div>
+        <div class="nano-chip muted">skin-12-nanobot</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cetus 模式 -->
+  <div class="cluster">
+    <div class="cluster-title">Cetus 模式 · <span style="color: var(--blue)">总路由 → per-tenant (gateway + nanobot) 配对</span></div>
+    <div class="cluster-sub">每个租户像一栋<strong class="blue">独栋别墅</strong>：自己的 gateway 处理本租户专属的 IM platform 应用配置（app_id / 签名 / OAuth），自己的 nanobot 思考。总路由 <code style="background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue);font-family:SF Mono,Menlo,monospace;font-size:12px">tenant-gateway</code> 像门卫，认出来人是哪家客户，把人引到对应别墅。</div>
+
+    <div class="Cetus-router">
+      tenant-gateway（总门卫 / 反向代理）
+      <div class="sub">所有外部租户共用的统一入口</div>
+    </div>
+    <div class="fan-arrows">↓ &nbsp;↓ &nbsp;↓ &nbsp;↓ &nbsp;↓</div>
+
+    <div class="Cetus-tenants">
+      <div class="tenant-pair"><div class="g">tenant-01 G</div><div class="arr">→</div><div class="n">tenant-01 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-02 G</div><div class="arr">→</div><div class="n">tenant-02 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-03 G</div><div class="arr">→</div><div class="n">tenant-03 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-04 G</div><div class="arr">→</div><div class="n">tenant-04 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-05 G</div><div class="arr">→</div><div class="n">tenant-05 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-10 G</div><div class="arr">→</div><div class="n">tenant-10 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-11 G</div><div class="arr">→</div><div class="n">tenant-11 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-14 G</div><div class="arr">→</div><div class="n">tenant-14 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-09 G</div><div class="arr">→</div><div class="n">tenant-09 N</div></div>
+      <div class="tenant-pair"><div class="g">tenant-19 G</div><div class="arr">→</div><div class="n">tenant-19 N</div></div>
+      <div class="tenant-pair"><div class="g">... 共 19 对</div><div class="arr">→</div><div class="n">G + N</div></div>
+      <div class="tenant-pair orphan"><div class="g">tenant-20 G</div><div class="arr">→</div><div class="n">无 N</div></div>
+      <div class="tenant-pair orphan"><div class="g">tenant-21 G</div><div class="arr">→</div><div class="n">无 N</div></div>
+      <div class="tenant-pair orphan"><div class="g">tenant-22 G</div><div class="arr">→</div><div class="n">无 N</div></div>
+    </div>
+    <div style="margin-top: 10px; color: var(--muted); font-size: 11.5px;">
+      G = gateway · N = nanobot · 灰色 = 该租户只有 gateway 没有 nanobot（可能未上线 / 配置未完整）
+    </div>
+  </div>
+
+  <!-- 一句话总结对照 -->
+  <div style="background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; font-size: 13.5px; line-height: 1.7;">
+    <strong style="color: var(--accent);">Athena 像一家公司：</strong>一组前台（共享 gateway）接所有来电，按内线分给不同同事（per-bot nanobot）。<br>
+    <strong style="color: var(--blue);">Cetus 像一条街：</strong>有个总门卫（tenant-gateway）查身份，每家客户自己开店（per-tenant gateway + nanobot），店与店互不相通。
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num">6</span>关键功能特性</h2>
+
+  <div class="features">
+    <div class="feature purple">
+      <div class="feature-title"><span class="dot"></span>同大脑、不同人格</div>
+      <div class="feature-desc">所有 bot 用同一套底层引擎，靠 <strong>人格 prompt + 工具集 + 记忆</strong> 这三件套捏出不同的角色 —— Athena 像营销助理、Echo 像数据分析师，骨架一样，外壳完全不同。</div>
+    </div>
+    <div class="feature blue">
+      <div class="feature-title"><span class="dot"></span>持久记忆</div>
+      <div class="feature-desc">每个 bot / 租户都有自己的长期记忆，跨对话保留上下文 —— 上次说过的偏好、确认过的结论、对接过的人，下次还在。</div>
+    </div>
+    <div class="feature green">
+      <div class="feature-title"><span class="dot"></span>工具增强</div>
+      <div class="feature-desc">Bot 不只是聊天，能 <strong>查内部数据库、调外部 API、读写文件、跑分析脚本</strong>。LLM 自己决定什么时候用哪个工具，可以连续调用直到拿到答案。</div>
+    </div>
+    <div class="feature orange">
+      <div class="feature-title"><span class="dot"></span>租户级隔离（Cetus）</div>
+      <div class="feature-desc">外部客户最关心数据安全。Cetus 把每个租户的 prompt、记忆、API 配额、对接的工具，全部物理 + 逻辑双重分开 —— 一家的故障不会影响别家。</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    本图聚焦功能视角，刻意省略部署 / 容器 / 镜像等技术细节。<br>
+    需要看运行时实测（哪台机器跑哪个容器、谁 healthy 谁 restarting），见同目录的 deep-dive 版本或重新生成。
+  </div>
+
+    </div>
+  </main>
+</div>
+
+<button class="back-to-top" id="back-to-top" title="回到顶部" aria-label="回到顶部">↑</button>
+
+<script>
+  // ============================================================
+  // i18n dictionary (zh / en)
+  // ============================================================
+  const I18N = {
+    zh: {
+      "nav.back": "← 合集首页",
+      "nav.title": "the company Agent 架构 / 功能模块图",
+      "nav.search": "搜索本页内容...",
+      "nav.lang": "EN",
+      "toc.label": "本页目录",
+      "toc.s1": "两个平台",
+      "toc.s2": "Bot 内部模块",
+      "toc.s3": "对话流程",
+      "toc.s4": "Athena / Cetus 对照",
+      "toc.s5": "双容器协作",
+      "toc.s6": "关键特性",
+      "no_results": (q) => `没有匹配「${q}」的章节`
+    },
+    en: {
+      "nav.back": "← Gallery",
+      "nav.title": "the company Agent Architecture / Functional Modules",
+      "nav.search": "Search this page...",
+      "nav.lang": "中",
+      "toc.label": "On this page",
+      "toc.s1": "Two platforms",
+      "toc.s2": "Bot internal modules",
+      "toc.s3": "Conversation flow",
+      "toc.s4": "Athena / Cetus comparison",
+      "toc.s5": "Dual-container split",
+      "toc.s6": "Key capabilities",
+      "no_results": (q) => `No sections matched "${q}"`
+    }
+  };
+  // Content-level translations (zh ↔ en) keyed by stable zh strings
+  // We translate elements with [data-i18n-zh] / [data-i18n-en] attributes
+  // OR fall back to the dictionary above.
+
+  // ============================================================
+  // Main script
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Wrap each h2.section + following siblings into a .section-block
+    const container = document.querySelector('.layout .container');
+    if (!container) return;
+    const children = Array.from(container.children);
+    let currentSection = null;
+    let sectionIdx = 0;
+    children.forEach(child => {
+      if (child.tagName === 'H2' && child.classList.contains('section')) {
+        sectionIdx++;
+        currentSection = document.createElement('div');
+        currentSection.className = 'section-block';
+        currentSection.id = `sec-${sectionIdx}`;
+        container.insertBefore(currentSection, child);
+        currentSection.appendChild(child);
+      } else if (currentSection) {
+        currentSection.appendChild(child);
+      }
+    });
+
+    const blocks = document.querySelectorAll('.section-block');
+    const tocItems = document.querySelectorAll('.toc-item');
+    const searchInput = document.getElementById('page-search');
+
+    // 2. Search with text highlighting
+    function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+    function escapeHTML(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    function clearMarks(el) {
+      el.querySelectorAll('mark.hit').forEach(m => {
+        const text = document.createTextNode(m.textContent);
+        m.parentNode.replaceChild(text, m);
+      });
+      el.normalize();
+    }
+    function applyMarks(el, regex) {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          if (!node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+          const tag = node.parentNode && node.parentNode.tagName;
+          if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'MARK') return NodeFilter.FILTER_REJECT;
+          return regex.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        }
+      });
+      const targets = [];
+      let n;
+      while ((n = walker.nextNode())) targets.push(n);
+      targets.forEach(node => {
+        const span = document.createElement('span');
+        span.innerHTML = node.nodeValue.replace(regex, '<mark class="hit">$1</mark>');
+        node.parentNode.replaceChild(span, node);
+      });
+    }
+
+    function runSearch() {
+      const q = searchInput.value.trim();
+      blocks.forEach(clearMarks);
+      const existing = document.getElementById('no-results');
+      if (existing) existing.remove();
+      if (!q) {
+        blocks.forEach(b => b.classList.remove('hidden'));
+        return;
+      }
+      const regex = new RegExp('(' + escapeRegex(q) + ')', 'gi');
+      const testRegex = new RegExp(escapeRegex(q), 'i');
+      let any = false;
+      blocks.forEach(b => {
+        const match = testRegex.test(b.textContent);
+        b.classList.toggle('hidden', !match);
+        if (match) { applyMarks(b, regex); any = true; }
+      });
+      if (!any) {
+        const nr = document.createElement('div');
+        nr.id = 'no-results';
+        nr.className = 'no-results';
+        const lang = document.documentElement.lang === 'en' ? 'en' : 'zh';
+        nr.innerHTML = '<div class="no-results-icon">∅</div>' + I18N[lang].no_results(escapeHTML(q));
+        container.appendChild(nr);
+      }
+    }
+    searchInput.addEventListener('input', runSearch);
+
+    // 3. Scroll spy
+    function updateActive() {
+      const scrollY = window.scrollY + 100;
+      let active = null;
+      blocks.forEach(b => {
+        if (b.offsetTop <= scrollY) active = b.id;
+      });
+      tocItems.forEach(t => {
+        t.classList.toggle('active', t.getAttribute('href') === '#' + active);
+      });
+    }
+    window.addEventListener('scroll', updateActive, { passive: true });
+    updateActive();
+
+    // 4. Back to top
+    const btt = document.getElementById('back-to-top');
+    window.addEventListener('scroll', () => {
+      btt.classList.toggle('show', window.scrollY > 600);
+    }, { passive: true });
+    btt.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    // 5. Smooth TOC scroll
+    tocItems.forEach(t => {
+      t.addEventListener('click', e => {
+        e.preventDefault();
+        const target = document.querySelector(t.getAttribute('href'));
+        if (target) {
+          window.scrollTo({
+            top: target.getBoundingClientRect().top + window.scrollY - 72,
+            behavior: 'smooth'
+          });
+          history.pushState(null, '', t.getAttribute('href'));
+        }
+      });
+    });
+
+    // 6. Keyboard shortcuts
+    document.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.select();
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInput) {
+        searchInput.value = '';
+        runSearch();
+        searchInput.blur();
+      }
+    });
+
+    // 7. Language toggle
+    function applyLang(lang) {
+      document.documentElement.lang = lang;
+      localStorage.setItem('viz_lang', lang);
+      // dictionary-driven elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[lang] && I18N[lang][key]) el.textContent = I18N[lang][key];
+      });
+      // content with data-i18n-zh / data-i18n-en pairs
+      document.querySelectorAll('[data-i18n-zh]').forEach(el => {
+        const zh = el.getAttribute('data-i18n-zh');
+        const en = el.getAttribute('data-i18n-en');
+        el.textContent = lang === 'en' ? (en || zh) : zh;
+      });
+      // labels
+      document.querySelector('.nav-back').firstChild.textContent =
+        lang === 'en' ? '← Gallery' : '← 合集首页';
+      document.querySelector('.nav-title').innerHTML =
+        lang === 'en'
+          ? 'the company Agent Architecture <span class="dim">/</span> Functional Modules'
+          : 'the company Agent 架构 <span class="dim">/</span> 功能模块图';
+      document.querySelector('#page-search').placeholder =
+        lang === 'en' ? 'Search this page...' : '搜索本页内容...';
+      document.querySelector('#lang-toggle').textContent =
+        lang === 'en' ? '中' : 'EN';
+    }
+    const savedLang = localStorage.getItem('viz_lang') || 'zh';
+    applyLang(savedLang);
+    document.getElementById('lang-toggle').addEventListener('click', () => {
+      const next = (document.documentElement.lang === 'en') ? 'zh' : 'en';
+      applyLang(next);
+    });
+  });
+</script>
+</body>
+</html>

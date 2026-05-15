@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>为什么线上和代码不一样 · Memory 系统的演化考古</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:32px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0;font-family:"SF Mono",Menlo,monospace}
+
+  /* ====================================================================
+     头部 TL;DR 三层因果
+     ==================================================================== */
+  .tldr-stack{display:flex;flex-direction:column;gap:0;margin:12px 0}
+  .tldr{background:var(--card);border:1px solid var(--border);padding:14px 18px;display:grid;grid-template-columns:80px 1fr;gap:14px;align-items:center;position:relative}
+  .tldr.surface{border-radius:8px 8px 0 0;border-bottom:none;border-left:3px solid var(--green)}
+  .tldr.middle{border-bottom:none;border-left:3px solid var(--blue)}
+  .tldr.deep{border-radius:0 0 8px 8px;border-left:3px solid var(--purple)}
+  .tldr .level{font-family:"SF Mono",Menlo,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;text-align:center;padding:6px 10px;border-radius:4px}
+  .tldr.surface .level{background:var(--green-dim);color:var(--green)}
+  .tldr.middle .level{background:var(--blue-dim);color:var(--blue)}
+  .tldr.deep .level{background:var(--purple-dim);color:var(--purple)}
+  .tldr .body{font-size:13.5px;line-height:1.55}
+  .tldr .body strong{color:var(--text)}
+  .tldr .body .why{color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* ====================================================================
+     时间线 (PR 历史)
+     ==================================================================== */
+  .timeline-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:12px 0}
+  .tl-axis{position:relative;height:4px;background:var(--border);border-radius:2px;margin:30px 6px}
+  .tl-tick{position:absolute;top:-4px;width:12px;height:12px;border-radius:50%;background:var(--accent);transform:translateX(-50%);box-shadow:0 0 0 3px rgba(255,140,66,.2)}
+  .tl-tick.bug{background:var(--red)}
+  .tl-tick.feature{background:var(--green)}
+  .tl-tick.fix{background:var(--yellow)}
+  .tl-tick.rework{background:var(--purple)}
+  .tl-tick-label{position:absolute;top:-46px;font-family:"SF Mono",Menlo,monospace;font-size:10px;color:var(--muted);transform:translateX(-50%);white-space:nowrap}
+
+  .tl-events{margin-top:30px;display:flex;flex-direction:column;gap:8px}
+  .tl-event{display:grid;grid-template-columns:80px 90px 90px 1fr;gap:12px;padding:10px 14px;background:var(--card-2);border-radius:6px;align-items:center;font-size:12.5px}
+  .tl-event .pr{font-family:"SF Mono",Menlo,monospace;color:var(--blue);font-size:11px}
+  .tl-event .kind{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:2px 6px;border-radius:3px;text-align:center;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+  .tl-event .kind.feat{background:var(--green-dim);color:var(--green)}
+  .tl-event .kind.fix{background:var(--yellow-dim);color:var(--yellow)}
+  .tl-event .kind.fork{background:var(--red-dim);color:var(--red)}
+  .tl-event .kind.rework{background:var(--purple-dim);color:var(--purple)}
+  .tl-event .era{color:var(--muted);font-size:10.5px;font-family:"SF Mono",Menlo,monospace}
+  .tl-event .what{color:var(--text)}
+  .tl-event .what strong{color:var(--accent)}
+  .tl-event.major{background:var(--accent-dim);border-left:2px solid var(--accent)}
+
+  /* ====================================================================
+     5 个具体决策
+     ==================================================================== */
+  .decisions{display:flex;flex-direction:column;gap:10px}
+  .decision{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;border-left:3px solid var(--accent);position:relative}
+  .decision .dnum{position:absolute;top:14px;right:18px;font-family:"SF Mono",Menlo,monospace;color:var(--muted);font-size:11px;background:var(--card-2);padding:2px 8px;border-radius:3px}
+  .decision .dt{font-weight:600;font-size:15px;margin-bottom:6px;color:var(--text)}
+  .decision .dproblem{color:var(--muted);font-size:12.5px;margin-bottom:6px;font-style:italic}
+  .decision .dproblem::before{content:"问题 · ";color:var(--red);font-style:normal;font-weight:600}
+  .decision .dsolution{color:var(--text);font-size:13px;margin-bottom:6px}
+  .decision .dsolution::before{content:"决定 · ";color:var(--green);font-weight:600;margin-right:2px}
+  .decision .devidence{color:var(--muted);font-size:11.5px;background:var(--card-2);padding:6px 10px;border-radius:4px;font-family:"SF Mono",Menlo,monospace;margin-top:6px}
+  .decision .devidence::before{content:"证据 · ";color:var(--blue);font-family:-apple-system,sans-serif;font-weight:600}
+
+  /* ====================================================================
+     设计哲学对比
+     ==================================================================== */
+  .philo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:10px 0}
+  @media(max-width:720px){.philo{grid-template-columns:1fr}}
+  .philo-side{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .philo-side.frame{border-top:3px solid var(--purple)}
+  .philo-side.live{border-top:3px solid var(--green)}
+  .philo-side .pn{font-family:"SF Mono",Menlo,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px}
+  .philo-side.frame .pn{color:var(--purple)}
+  .philo-side.live .pn{color:var(--green)}
+  .philo-side .pt{font-weight:600;font-size:16px;margin-bottom:8px}
+  .philo-side .pl{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:8px}
+  .philo-side .pl strong{color:var(--text)}
+  .philo-side ul{margin:6px 0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .philo-side ul li{margin-bottom:3px}
+  .philo-side ul li strong{color:var(--text)}
+
+  /* ====================================================================
+     fork 演化树（SVG）
+     ==================================================================== */
+  .fork-tree{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center}
+
+  /* ====================================================================
+     真相 3 个层面
+     ==================================================================== */
+  .truth-stack{margin-top:12px}
+  .truth{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin-bottom:10px;display:grid;grid-template-columns:60px 1fr;gap:18px;align-items:start}
+  .truth .ti{font-size:32px;line-height:1}
+  .truth .tt{font-weight:600;font-size:16px;margin-bottom:6px}
+  .truth .td{color:var(--muted);font-size:13px;line-height:1.6}
+  .truth .td strong{color:var(--text)}
+
+  /* ====================================================================
+     最后的 takeaway
+     ==================================================================== */
+  .takeaway{background:linear-gradient(135deg,var(--accent-dim) 0,var(--card) 100%);border:1px solid var(--accent);border-radius:12px;padding:24px 28px;margin:18px 0;text-align:center}
+  .takeaway .big{font-size:24px;font-weight:600;color:var(--accent);letter-spacing:-.01em;margin-bottom:8px}
+  .takeaway .small{color:var(--muted);font-size:13px;line-height:1.6}
+  .takeaway .small strong{color:var(--text)}
+
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout strong{color:var(--blue)}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .com{color:var(--muted)}
+  pre .key{color:var(--accent)}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>11 · 为什么线上和代码不一样</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>11 · 为什么线上和代码不一样</h1>
+    <div class="sub">Memory 系统演化考古 · 从 git log 重建 5 次重写背后的逻辑</div>
+  </div>
+
+  <div class="lead">
+    第 02 篇发现 Athena 的 memory 系统跟代码里的 <code>MemoryStore/Consolidator/Dream</code> 几乎不重叠 —— 6/10 项 dead code。<strong>这不是偶然</strong>。<br>
+    Git log 显示这个模块在 17 个月内被改过 <strong>18 次</strong>，至少经历了 <strong>5 次重大重写</strong>。每次重写都是被具体的线上问题逼出来的。这篇文章把 18 个 PR 重新排队，看清楚分歧的因果链。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">0</span>TL;DR · 三层原因</h2>
+
+  <p>"线上和代码不一样"有<strong>三层原因</strong>，从浅到深：</p>
+
+  <div class="tldr-stack">
+    <div class="tldr surface">
+      <div class="level">SURFACE</div>
+      <div class="body">
+        <strong>表层 · 技术不兼容</strong>
+        <div class="why">13 agent 共享 workspace 让 GitStore 自动 commit 必会冲突；jsonl 多进程 append 会乱；Dream cron 跑 LLM 太贵。<strong>框架的优雅设计在 Athena 的部署形态下根本跑不起来</strong>。</div>
+      </div>
+    </div>
+    <div class="tldr middle">
+      <div class="level">MIDDLE</div>
+      <div class="body">
+        <strong>中层 · 产品 vs 框架愿景分歧</strong>
+        <div class="why">nanobot-ai 设计的是<strong>"个人 AI 助理"</strong>（一个用户、一个 workspace、自动归档）。Athena 是<strong>"团队 AI 经理"</strong>（13 agent、共享知识库、人工把关）。两者的 memory 需求从根上就不同。</div>
+      </div>
+    </div>
+    <div class="tldr deep">
+      <div class="level">DEEP</div>
+      <div class="body">
+        <strong>深层 · fork 后的必然分叉</strong>
+        <div class="why">PR #1906 "fork nanobot-ai + fix race"。fork 那一刻，Athena 和上游 nanobot 就走上了两条路。之后 18 个 memory PR 全是 the company 自己加的，<strong>没有任何一个回上游</strong>。两年下来已经是两个项目。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">1</span>时间线 · 18 个 PR 讲了什么故事</h2>
+
+  <p>用 git log 重建演化时间线（PR 号大致 = 时间顺序）。<strong>每个 PR 都解决一个具体问题</strong>，把它们串起来就看到 memory 系统是怎么"长成"现在这样的：</p>
+
+  <div class="timeline-wrap">
+    <div class="tl-axis">
+      <div class="tl-tick feature" style="left:5%"><div class="tl-tick-label" style="top:-26px">#1561</div></div>
+      <div class="tl-tick feature" style="left:13%"><div class="tl-tick-label" style="top:-26px">#1640</div></div>
+      <div class="tl-tick rework" style="left:25%"><div class="tl-tick-label" style="top:-26px">#1744 ⭐</div></div>
+      <div class="tl-tick bug" style="left:40%"><div class="tl-tick-label" style="top:-26px">#1906 fork</div></div>
+      <div class="tl-tick feature" style="left:50%"><div class="tl-tick-label" style="top:-26px">#1910</div></div>
+      <div class="tl-tick feature" style="left:60%"><div class="tl-tick-label" style="top:-26px">#1986</div></div>
+      <div class="tl-tick fix" style="left:70%"><div class="tl-tick-label" style="top:-26px">#2186</div></div>
+      <div class="tl-tick rework" style="left:80%"><div class="tl-tick-label" style="top:-26px">#2465 ⭐</div></div>
+      <div class="tl-tick rework" style="left:92%"><div class="tl-tick-label" style="top:-26px">#2961 ⭐</div></div>
+    </div>
+
+    <div class="tl-events">
+      <div class="tl-event">
+        <span class="pr">#1561</span>
+        <span class="kind feat">feat</span>
+        <span class="era">时期 1<br>"试水"</span>
+        <span class="what">pgvector memory <strong>auto-search + save</strong> · 第一次把远程语义记忆塞进 Athena</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1593</span>
+        <span class="kind fix">fix</span>
+        <span class="era"></span>
+        <span class="what">memory isolation + @mention filtering · 多 agent 共享时<strong>第一次发现隔离问题</strong></span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1612</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">long-task support — timeout / compaction / checkpoint · <strong>compaction 概念引入</strong></span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1624</span>
+        <span class="kind fix">fix</span>
+        <span class="era"></span>
+        <span class="what">review bugs — null guards, re-compaction · 第一版 compaction <strong>bug 一堆</strong></span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1640</span>
+        <span class="kind feat">feat</span>
+        <span class="era">时期 2<br>"加固"</span>
+        <span class="what">memory layer <strong>v0.1</strong> — save filter / dedup / staleness / UI-first<br>(<code style="font-size:11px">should_save / memory_freshness_warning / cosine 0.9 merge</code> 这一套就是这次定下来的)</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1644</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">P1+P2+P3 — <strong>consolidate memory / crash-safe state</strong> / campaign filter · Athena 自己写"consolidate"</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1717</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">memory isolation DM/Group · MAX_ITERATIONS 100 · <strong>群聊 vs 私聊隔离</strong></span>
+      </div>
+      <div class="tl-event major">
+        <span class="pr">#1744 ⭐</span>
+        <span class="kind rework">rework</span>
+        <span class="era">时期 3<br>"v7 大重写"</span>
+        <span class="what"><strong>memory-v7 — workspace-first memory architecture</strong> · v7 = 之前已经迭代 v1-v6 ·<br>这就是 Athena 现在用的 <strong>workspace 共享 markdown 知识库</strong>的起点</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1903</span>
+        <span class="kind fix">fix</span>
+        <span class="era"></span>
+        <span class="what">max_tokens 4096→64K + context 200K→618K (φ×1M) · <strong>context 扩大 3 倍</strong>，旧 compaction 阈值需重算</span>
+      </div>
+      <div class="tl-event major">
+        <span class="pr">#1906 ⚠</span>
+        <span class="kind fork">fork</span>
+        <span class="era"></span>
+        <span class="what"><strong>fork nanobot-ai + fix _sent_in_turn race condition</strong> · <strong style="color:var(--red)">从上游分叉的时刻</strong></span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1910</span>
+        <span class="kind feat">feat</span>
+        <span class="era">时期 4<br>"接 OpenClaw 经验"</span>
+        <span class="what">progressive disclosure compaction — <strong>3-layer pipeline</strong> · hooks/compaction.py 的雏形</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1937</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">skill usage tracking via JSONL · 把 metric 改成 jsonl(<strong>不放 git</strong>)</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1963</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">context health metrics tracking + daily card integration · 之后的 ctx_loss / TTFT 都源于此</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#1986</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">align context pruning with <strong>OpenClaw contextPruning</strong> · 跨项目<strong>借鉴 TS 版本的经验</strong></span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#2186</span>
+        <span class="kind fix">fix</span>
+        <span class="era">时期 5<br>"工程化收敛"</span>
+        <span class="what">aggressive dump &amp; compact + VectorDB fallback fix · <strong>5 阶段</strong>正式成形</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#2193</span>
+        <span class="kind fix">fix</span>
+        <span class="era"></span>
+        <span class="what">ensure tool_use.input is always a dict · <strong>Phase 3 truncate args 的 JSON 守恒</strong>来源</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#2379</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">track Gemini + Nova Micro + embedding costs · 加 cost 追踪 → <strong>知道 Dream 太贵</strong></span>
+      </div>
+      <div class="tl-event major">
+        <span class="pr">#2465 ⭐</span>
+        <span class="kind rework">rework</span>
+        <span class="era">时期 6<br>"再次大重写"</span>
+        <span class="what"><strong>memory overhaul — DeepSeek extraction, group memory, MEMORY.md</strong> ·<br>从 Claude 摘要改 DeepSeek + 引入 group 概念 + 重新定义 MEMORY.md 角色</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">#2741/45</span>
+        <span class="kind fix">fix</span>
+        <span class="era"></span>
+        <span class="what">archive stale sessions <strong>without compaction</strong> · 老 session 不再触发 compaction</span>
+      </div>
+      <div class="tl-event major">
+        <span class="pr">#2961 ⭐</span>
+        <span class="kind rework">rework</span>
+        <span class="era">时期 7<br>"工具化"</span>
+        <span class="what"><strong>active memory_search tool with chat scope</strong> ·<br>从"系统自动注入"改成"<strong style="color:var(--accent)">agent 主动调用工具</strong>"—— 当前形态</span>
+      </div>
+      <div class="tl-event">
+        <span class="pr">latest</span>
+        <span class="kind feat">feat</span>
+        <span class="era"></span>
+        <span class="what">shard history and <strong>remove mem0</strong> · 之前还试过 mem0，最近移除</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>三个 ⭐ rework PR 是分水岭：</strong> #1744 <strong>workspace-first v7</strong>、#2465 <strong>memory overhaul</strong>、#2961 <strong>active 工具化</strong>。这是三次"我们之前想的不对，换种做法"的大重写。每次都让 Athena 离 nanobot 框架更远一步。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">2</span>5 个具体决策 · 都是被问题逼出来的</h2>
+
+  <p>从 PR 里提取 5 个关键技术决策。每个都有<strong>具体问题 → 具体解决</strong>的因果，不是凭空设计：</p>
+
+  <div class="decisions">
+    <div class="decision">
+      <div class="dnum">#1</div>
+      <div class="dt">放弃 GitStore 自动 commit</div>
+      <div class="dproblem">13 个 nanobot 容器挂载同一份 workspace，并发 commit MEMORY/SOUL/USER 时 git 会 lock 冲突 / detached HEAD / 时序错乱。</div>
+      <div class="dsolution">workspace 不做 git 跟踪，改用 .md 文件 + AGENTS.md 协议（人工约束哪个 agent 写哪一段）。</div>
+      <div class="devidence">workspace 没有 .git；PR #1717 "memory isolation DM/Group" 时期发现的</div>
+    </div>
+
+    <div class="decision">
+      <div class="dnum">#2</div>
+      <div class="dt">不用 history.jsonl shard</div>
+      <div class="dproblem">jsonl 多进程 append 没有强一致性，13 个 agent 同时 append 会出现行截断 / 互覆盖。Consolidator 设计假设单进程。</div>
+      <div class="dsolution">按日 markdown 文件 <code>memory/YYYY-MM-DD.md</code>，每个 agent 自己用 edit_file 工具按 section 写自己负责区。</div>
+      <div class="devidence">实测 100+ daily .md 文件 · 没有 history.jsonl · PR #1744 "workspace-first"</div>
+    </div>
+
+    <div class="decision">
+      <div class="dnum">#3</div>
+      <div class="dt">Dream 离线整理 → 撤掉</div>
+      <div class="dproblem">Dream 每次跑都调 LLM 摘要 + 编辑文件。13 agent 各自 cron 跑成本 13×。还经常发生"幻觉删除"重要内容 → 人工恢复。</div>
+      <div class="dsolution">不再有自动 Dream cron。MEMORY.md 维护改成<strong>人工 + agent 在对话中 edit_file</strong> 半自动。需要时再人工触发"compress"。</div>
+      <div class="devidence">.dream_cursor 4/23 后 20 天没动 · MEMORY.md "Last compressed: 2026-02-14" 是人工标记</div>
+    </div>
+
+    <div class="decision">
+      <div class="dnum">#4</div>
+      <div class="dt">Consolidator 实时归档 → 撤掉，改 5 阶段 hook</div>
+      <div class="dproblem">Consolidator 在 token 紧时同步调 LLM 摘要 → 用户响应慢一倍。而且写到 history.jsonl 又没人读（见决策 #2）。</div>
+      <div class="dsolution">hooks/compaction.py <strong>5 阶段 progressive pipeline</strong>：60% offload(文件) → 70% prune(字符串 dedup) → 70% truncate(JSON 截断) → 85% DeepSeek INDEX → 92% emergency。前 3 阶段零 LLM 成本。</div>
+      <div class="devidence">PR #1612 引入 → #1910 progressive disclosure → #1986 align OpenClaw → #2186 aggressive dump</div>
+    </div>
+
+    <div class="decision">
+      <div class="dnum">#5</div>
+      <div class="dt">pgvector 从"自动注入"改"工具调用"</div>
+      <div class="dproblem">把 memory_search 结果默认塞 system prompt → 每次都消耗 token，agent 也未必需要。而且 chat scope 隔离逻辑很难放到 system prompt 阶段。</div>
+      <div class="dsolution">改为 <strong>active memory_search 工具</strong>，agent 自己判断何时调用。chat_scope 是工具参数。</div>
+      <div class="devidence">PR #2961 (P0 follow-up to #2741) "active memory_search tool with chat scope"</div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">3</span>设计哲学 · 两种愿景的对撞</h2>
+
+  <p>表层技术问题背后是<strong>两种"agent memory 应该长啥样"的根本性分歧</strong>：</p>
+
+  <div class="philo">
+    <div class="philo-side frame">
+      <div class="pn">FRAMEWORK · nanobot-ai 原作者愿景</div>
+      <div class="pt">个人 AI 助理 · 自动管理</div>
+      <div class="pl">"一个用户 + 一个 agent + 一个 workspace · agent 自己<strong>悄悄地把所有事情打理好</strong>"</div>
+      <ul>
+        <li><strong>workspace 私有</strong>（git 跟踪自己改的 SOUL.md）</li>
+        <li><strong>对话历史</strong>都自动归档 (jsonl shard)</li>
+        <li>token 紧 → <strong>Consolidator 静默摘要</strong>（用户不察觉）</li>
+        <li>每天 <strong>Dream 离线整理</strong>（不打扰用户）</li>
+        <li>memory<strong>自动注入</strong> system prompt</li>
+        <li>"agent 越聪明，用户越省心"</li>
+      </ul>
+    </div>
+
+    <div class="philo-side live">
+      <div class="pn">LIVE · Athena 团队的实际选择</div>
+      <div class="pt">团队 AI 经理 · 显式协作</div>
+      <div class="pl">"<strong>13 agent + 多个用户 + 共享知识库</strong> · agent 是<strong>团队同事</strong>，要遵守协议、写 daily log、被人审核"</div>
+      <ul>
+        <li>workspace <strong>共享</strong>（多人多 agent 协作，不能私有）</li>
+        <li>对话不归档，<strong>每天写 daily log .md</strong>（人也能读）</li>
+        <li>token 紧 → <strong>纯字符串压缩</strong>，必要时 DeepSeek INDEX</li>
+        <li>不自动整理，<strong>人工触发"compress"</strong>（高质量胜过频率）</li>
+        <li>memory <strong>是工具</strong> · agent 自己决定何时调</li>
+        <li>"agent 越守规矩，团队越能用上"</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>两种愿景都对，但<strong>不能同时存在</strong>。</strong> 框架愿景适合"个人副驾"场景（Cursor / Claude Code 那种）。Athena 愿景适合"团队代理"场景（slack/lark bot 给一队人用）。Athena 选择的是后者，所以前者的代码必然变 dead。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">4</span>fork 演化 · 不可避免的分叉</h2>
+
+  <p>PR #1906 "<strong>fork nanobot-ai + fix _sent_in_turn race condition</strong>" 是个转折点 —— the company 不再依赖上游 nanobot-ai，开始维护自己的 fork。这是命运分叉时刻：</p>
+
+  <div class="fork-tree">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <!-- nanobot-ai trunk (left) -->
+      <line x1="120" y1="20" x2="120" y2="300" stroke="#bc8cff" stroke-width="3"/>
+      <text x="120" y="14" text-anchor="middle" fill="#bc8cff" font-size="11" font-weight="700" font-family="-apple-system">nanobot-ai 上游</text>
+
+      <!-- Athena fork (right) -->
+      <line x1="430" y1="80" x2="430" y2="300" stroke="#ff8c42" stroke-width="3"/>
+      <text x="430" y="74" text-anchor="middle" fill="#ff8c42" font-size="11" font-weight="700" font-family="-apple-system">the company fork</text>
+
+      <!-- fork point -->
+      <line x1="120" y1="80" x2="430" y2="80" stroke="#f85149" stroke-width="2" stroke-dasharray="4 3"/>
+      <text x="275" y="68" text-anchor="middle" fill="#f85149" font-size="11" font-weight="700" font-family="-apple-system">PR #1906 (fork)</text>
+
+      <!-- nanobot-ai original design (left side dots) -->
+      <circle cx="120" cy="120" r="6" fill="#bc8cff"/>
+      <text x="105" y="125" text-anchor="end" fill="#bc8cff" font-size="11" font-family="-apple-system">MemoryStore</text>
+      <circle cx="120" cy="160" r="6" fill="#bc8cff"/>
+      <text x="105" y="165" text-anchor="end" fill="#bc8cff" font-size="11" font-family="-apple-system">Consolidator</text>
+      <circle cx="120" cy="200" r="6" fill="#bc8cff"/>
+      <text x="105" y="205" text-anchor="end" fill="#bc8cff" font-size="11" font-family="-apple-system">Dream</text>
+      <circle cx="120" cy="240" r="6" fill="#bc8cff"/>
+      <text x="105" y="245" text-anchor="end" fill="#bc8cff" font-size="11" font-family="-apple-system">GitStore</text>
+      <text x="105" y="285" text-anchor="end" fill="#7d8590" font-size="10" font-family="-apple-system" font-style="italic">(冻结在 fork 那天)</text>
+
+      <!-- Athena live additions (right side dots) -->
+      <circle cx="430" cy="110" r="6" fill="#3fb950"/>
+      <text x="445" y="115" fill="#3fb950" font-size="11" font-family="-apple-system">hooks/compaction.py</text>
+
+      <circle cx="430" cy="140" r="6" fill="#3fb950"/>
+      <text x="445" y="145" fill="#3fb950" font-size="11" font-family="-apple-system">workspace-first v7 (#1744)</text>
+
+      <circle cx="430" cy="170" r="6" fill="#3fb950"/>
+      <text x="445" y="175" fill="#3fb950" font-size="11" font-family="-apple-system">OpenClaw pruning (#1986)</text>
+
+      <circle cx="430" cy="200" r="6" fill="#3fb950"/>
+      <text x="445" y="205" fill="#3fb950" font-size="11" font-family="-apple-system">DeepSeek INDEX (#2465)</text>
+
+      <circle cx="430" cy="230" r="6" fill="#3fb950"/>
+      <text x="445" y="235" fill="#3fb950" font-size="11" font-family="-apple-system">active memory_search tool (#2961)</text>
+
+      <circle cx="430" cy="260" r="6" fill="#3fb950"/>
+      <text x="445" y="265" fill="#3fb950" font-size="11" font-family="-apple-system">remove mem0 (latest)</text>
+
+      <text x="445" y="295" fill="#7d8590" font-size="10" font-family="-apple-system" font-style="italic">(全是 Athena 自己加的，零回流上游)</text>
+    </svg>
+  </div>
+
+  <div class="callout">
+    <strong>"fork 后零回流"</strong>是个 social signal：the company 没把这些改动 PR 回上游 nanobot-ai。可能原因 ——
+    <ul style="margin:6px 0 0 18px;color:var(--muted);font-size:12.5px;line-height:1.7">
+      <li>改动太 Athena-specific（共享 workspace / 13 agent / Hatchet 集成），<strong>上游用不到</strong></li>
+      <li>上游对 PR review 要求高，<strong>the company 没时间走流程</strong></li>
+      <li>核心改动违反上游设计哲学，<strong>合不了</strong></li>
+    </ul>
+    任何一个原因都会让 fork 不可逆。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">5</span>三层真相 · 由浅入深</h2>
+
+  <div class="truth-stack">
+    <div class="truth">
+      <div class="ti">🔧</div>
+      <div>
+        <div class="tt">浅层 · "代码经常死，因为环境变了"</div>
+        <div class="td">框架代码是当时(2024 Q4)对"一个 agent / 一个 workspace"的设计。后来 Athena 变成 13 agent 共享 + Hatchet durable task + 多用户 IM 群 —— <strong>同一份代码在新场景下不能工作</strong>，要么改要么弃。<br><br>线上不一样不是 bug，是<strong>代码没跟上场景</strong>的自然结果。</div>
+      </div>
+    </div>
+
+    <div class="truth">
+      <div class="ti">⚖️</div>
+      <div>
+        <div class="tt">中层 · "通用框架做不出专用产品"</div>
+        <div class="td">nanobot-ai 框架想做的是"<strong>generic AI agent framework</strong>" —— 像 LangChain。Athena 想做的是<strong>具体的产品</strong> —— 团队 IM platform 机器人。<br><br>通用框架追求覆盖<strong>所有可能场景</strong>（所以有 Consolidator、Dream、GitStore 等优雅抽象）。产品追求<strong>解决具体问题</strong>（所以选了朴素的 markdown + workspace 共享）。<br><br>两个目标不可调和 → Athena 必然选自己写一份。</div>
+      </div>
+    </div>
+
+    <div class="truth">
+      <div class="ti">🌳</div>
+      <div>
+        <div class="tt">深层 · "fork 是分叉树的起点，不是修复"</div>
+        <div class="td">很多团队<strong>误以为</strong>"fork = 临时方案，等改完再回去"。实际上 fork 之后<strong>有自己的演化压力</strong> —— bug 要修、feature 要加、deadline 要赶 —— 没人有功夫保持兼容上游。<br><br>the company 在 PR #1906 之后<strong>再没回过上游</strong>。所有 17 个 memory PR 都是单方面改 fork。两年下来 Athena 用的"nanobot"已经是<strong>事实上的独立项目</strong>，只是没改名。<br><br>类似的故事在 Linux fork（Android）、MongoDB fork（FerretDB）、ElasticSearch fork（OpenSearch）反复发生 —— fork 是命运分叉，<strong>不可逆</strong>。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">6</span>实用启示</h2>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">看代码要看 git log</strong><br>
+      <span style="color:var(--muted);font-size:12px">单读源码 = 看到"所有可能存在过的设计"。读 git log = 看到"哪些活下来了"。dead code 在 git log 里有特征：长期不再被改、附近 PR 都绕开它。</span>
+    </div>
+
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">cursor / state 文件是化石</strong><br>
+      <span style="color:var(--muted);font-size:12px">.cursor / .checkpoints / .progress 这种 runtime state 文件，mtime 比代码 mtime 重要 —— 文件几周不动 = 对应模块没在跑。</span>
+    </div>
+
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">PR 名暗藏版本数字</strong><br>
+      <span style="color:var(--muted);font-size:12px">"memory-v7" / "P1+P2+P3" / "overhaul" / "rework" 这种关键词 = 这块被改过很多次。新人看到这种 PR 名要立刻警觉"我读的这版可能也不是最终版"。</span>
+    </div>
+
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">fork 不要轻易做</strong><br>
+      <span style="color:var(--muted);font-size:12px">the company fork nanobot-ai 后写了 17 个 PR 全靠自己 —— 这是巨大维护成本。fork 前先问"能不能 upstream"，不行再开 fork。</span>
+    </div>
+
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">dead code 要主动标"deprecated"</strong><br>
+      <span style="color:var(--muted);font-size:12px">nanobot/agent/memory.py 里 Consolidator/Dream 还在但没人用。建议加 <code>__deprecated__ = "Use hooks/compaction.py instead, since 2025-04"</code> 等显式标记，下次同事再读就不会被误导。</span>
+    </div>
+
+    <div class="callout" style="margin:0;border-left-color:var(--accent)">
+      <strong style="color:var(--accent)">CLAUDE.md 要同步更新</strong><br>
+      <span style="color:var(--muted);font-size:12px">CLAUDE.md 还在写"Memory Service uses VectorDB + Gemini ..."但 compaction 5 阶段一字不提 —— 文档落后实际 5+ 个 PR。让团队定期审计 onboarding 文档跟代码的一致性。</span>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">7</span>一句话总结</h2>
+
+  <div class="takeaway">
+    <div class="big">线上和代码不一样 ≠ bug。这是 fork 后两年自然演化的结果。</div>
+    <div class="small">
+      代码反映"<strong>当年想做什么</strong>"，线上反映"<strong>最后做出了什么</strong>"。<br>
+      中间是 <strong>18 个 PR、5 次大重写、1 次 fork、2 年时间</strong>，所有这些都没有义务保持原始设计一致。<br>
+      要理解 Athena，必须把代码当<strong>地质剖面</strong>读 —— 不同地层是不同时期的产物，活的层在最上面，下面是化石。
+    </div>
+  </div>
+
+  <div class="footer">
+    考古数据 · <code style="background:transparent;color:var(--muted)">git log --oneline -- auto-agent/memory.py auto-agent/hooks/compaction.py auto-agent/nanobot/agent/memory.py</code><br>
+    时间跨度 · PR #1561 (2024 早期) → 最新 commit (2026-05) · 共 18 个 memory 相关 PR
+  </div>
+
+</div>
+</body>
+</html>

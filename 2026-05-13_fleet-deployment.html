@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet 部署 · 一份镜像 13 个分身</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+  pre .num{color:var(--pink)}
+
+  /* Architecture diagram */
+  .arch{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center}
+  .arch .img-box{background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);font-weight:600;padding:12px 20px;border-radius:6px;display:inline-block;font-family:"SF Mono",Menlo,monospace}
+  .arch .img-box .sub{color:var(--muted);font-weight:400;font-size:11px;margin-top:2px}
+  .arch .arrow{color:var(--muted);font-size:20px;margin:10px 0}
+  .arch .layer-name{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:8px 0 4px}
+
+  /* Bot table */
+  .bot-table{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .bot-row{display:grid;grid-template-columns:140px 100px 80px 80px 1fr 80px;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12.5px;font-family:"SF Mono",Menlo,monospace}
+  .bot-row:last-child{border-bottom:none}
+  .bot-row.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;font-family:-apple-system,sans-serif}
+  .bot-row.master{background:var(--accent-dim)}
+  .bot-row.master .bn{color:var(--accent);font-weight:600}
+  .bot-row.pending{background:var(--yellow-dim);opacity:.7}
+  .bot-row .bn{color:var(--text)}
+  .bot-row .port{color:var(--blue)}
+  .bot-row .tier{padding:2px 8px;border-radius:3px;text-align:center;font-weight:600;font-family:"SF Mono",Menlo,monospace}
+  .bot-row .tier.senior{background:var(--purple-dim);color:var(--purple)}
+  .bot-row .tier.member{background:var(--cyan-dim);color:var(--cyan)}
+  .bot-row .tier.functional{background:var(--yellow-dim);color:var(--yellow)}
+  .bot-row .status{padding:2px 8px;border-radius:3px;text-align:center;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .bot-row .status.running{background:var(--green-dim);color:var(--green)}
+  .bot-row .status.pending{background:var(--yellow-dim);color:var(--yellow)}
+  .bot-row .note{color:var(--muted);font-family:-apple-system,sans-serif;font-size:11.5px}
+
+  /* Volume mount diagram */
+  .mount-diagram{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .mount-row{display:grid;grid-template-columns:1fr 30px 1fr;gap:14px;padding:10px 0;align-items:center;border-bottom:1px solid var(--border)}
+  .mount-row:last-child{border-bottom:none}
+  .mount-side{background:var(--card-2);padding:10px 14px;border-radius:6px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px}
+  .mount-side.host{border-left:3px solid var(--cyan)}
+  .mount-side.container{border-left:3px solid var(--green)}
+  .mount-side .ml{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;font-family:-apple-system,sans-serif;font-weight:600}
+  .mount-row .arr{text-align:center;color:var(--accent);font-size:18px}
+  .mount-side .desc{color:var(--muted);font-size:11px;margin-top:4px;font-family:-apple-system,sans-serif}
+
+  /* Live status */
+  .live-row{display:grid;grid-template-columns:200px 1fr auto;gap:10px;padding:8px 14px;background:var(--card-2);border-radius:6px;margin-bottom:4px;font-family:"SF Mono",Menlo,monospace;font-size:12px;align-items:center}
+  .live-row .lname{color:var(--text)}
+  .live-row .lhash{color:var(--muted);font-size:10.5px}
+  .live-row .lstat{background:var(--green-dim);color:var(--green);padding:2px 8px;border-radius:3px;font-size:10.5px;font-weight:600}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"线上实测 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>08 · Fleet 部署</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>08 · Fleet 部署架构</h1>
+    <div class="sub">一份镜像、一份代码、13 个独立人格 —— 配置驱动的"分身术"</div>
+  </div>
+
+  <div class="lead">
+    Fleet 的核心想法：<strong>一份代码 + 一个 Docker 镜像</strong>（<code>the-platform/nanobot-agent</code>），通过 <strong>env vars 和挂载不同 workspace 目录</strong>跑出 13 个完全独立的"人格"。<br>
+    配置都在 <code>nanobot-fleet.json</code>，一个文件就是 fleet 全貌的 ground truth —— 谁、用哪个 IM platform app、什么 tier、跑没跑起来。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>整体架构 · 三层结构</h2>
+
+  <div class="arch">
+    <div class="layer-name">基础设施层</div>
+    <div class="img-box">
+      Agent EC2 · <EC2-A>
+      <div class="sub">ubuntu host</div>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <div class="layer-name">镜像层（同一份）</div>
+    <div class="img-box" style="background:var(--blue-dim);border-color:var(--blue);color:var(--blue)">
+      the-platform/nanobot-agent:1f03a46
+      <div class="sub">ECR · /usr/local/lib/python3.11/site-packages/nanobot</div>
+    </div>
+
+    <div class="arrow">↓ 13 实例</div>
+
+    <div class="layer-name">实例层（per-bot 差异）</div>
+    <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px">
+      <div style="background:var(--accent);color:var(--bg);padding:6px 10px;border-radius:4px;font-family:'SF Mono',monospace;font-size:11px;font-weight:600">agent-primary:3101</div>
+      <div style="background:var(--blue-dim);color:var(--blue);padding:6px 10px;border-radius:4px;font-family:'SF Mono',monospace;font-size:11px">echo-agent:??</div>
+      <div style="background:var(--purple-dim);color:var(--purple);padding:6px 10px;border-radius:4px;font-family:'SF Mono',monospace;font-size:11px">skin-01:3104</div>
+      <div style="background:var(--cyan-dim);color:var(--cyan);padding:6px 10px;border-radius:4px;font-family:'SF Mono',monospace;font-size:11px">skin-02:3106</div>
+      <div style="color:var(--muted);padding:6px 10px;font-family:'SF Mono',monospace;font-size:11px">... 9 more</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>"分身"的本质：</strong> 容器都是同一镜像启动，<strong>per-bot env vars 决定身份</strong>：<code>AGENT_NAME=skin-07</code> · <code>LARK_APP_ID=<IM-app-id-redacted></code> · <code>PORT=3118</code> · <code>WORKSPACE_PATH=/root/.nanobot/workspace</code>。容器内一启动就根据这些拼出自己的人格（读 <code>agent-skins-data/skins/skin-07/</code>）。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>nanobot-fleet.json · ground truth</h2>
+
+  <p>整个 fleet 的配置就在这一个 JSON 文件：</p>
+
+  <pre>{
+  <span class="key">"version"</span>: <span class="num">1</span>,
+  <span class="key">"metadata"</span>: {
+    <span class="key">"description"</span>: <span class="str">"Nanobot fleet — personal AI agents on nanobot + Hatchet"</span>,
+    <span class="key">"ec2_instance"</span>: <span class="str">"<EC2-A>"</span>,
+    <span class="key">"image"</span>: <span class="str">"the-platform/nanobot-agent:latest"</span>,
+    <span class="key">"server"</span>: <span class="str">"auto-agent/nanobot_server.py"</span>
+  },
+  <span class="key">"defaults"</span>: {
+    <span class="key">"llm_model"</span>: <span class="str">"us.anthropic.claude-opus-4-6-v1"</span>,
+    <span class="key">"context_window"</span>: <span class="num">618000</span>,
+    <span class="key">"max_iterations"</span>: <span class="num">100</span>,
+    <span class="key">"shared_workspace"</span>: <span class="str">"/home/ubuntu/agent-data/prod/workspace"</span>,
+    <span class="key">"identity_source"</span>: <span class="str">"/home/ubuntu/agent-skins-data/prod/skins"</span>,
+    <span class="key">"VectorDB_url"</span>: <span class="str">"https://e4ii3f8e.us-east.tenant-04.app"</span>
+  },
+  <span class="key">"port_offset"</span>: <span class="num">100</span>,    <span class="com">// nanobot_port = openclaw_port + 100</span>
+  <span class="key">"bots"</span>: [
+    { <span class="key">"name"</span>: <span class="str">"skin-07"</span>, <span class="key">"app_id"</span>: <span class="str">"cli_a921..."</span>,
+      <span class="key">"openclaw_port"</span>: <span class="num">3018</span>, <span class="key">"nanobot_port"</span>: <span class="num">3118</span>,
+      <span class="key">"tier"</span>: <span class="str">"member"</span>, <span class="key">"status"</span>: <span class="str">"running"</span>, ... },
+    ... 12 more
+  ]
+}</pre>
+
+  <p>关键字段含义：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">defaults</strong> · 所有 bot 共享的默认值（模型、context 窗口、workspace 路径），bot 内可单独 override</li>
+    <li><strong style="color:var(--text)">port_offset = 100</strong> · 每个 bot 跑两套（OpenClaw 老栈 + nanobot 新栈），端口差 100，方便心算转换</li>
+    <li><strong style="color:var(--text)">bots[].app_id</strong> · IM 应用 ID，Webhook 路由就靠它区分</li>
+    <li><strong style="color:var(--text)">bots[].open_id</strong> · 用户视角的 bot IM platform UID，方便@</li>
+    <li><strong style="color:var(--text)">bots[].tier</strong> · senior / member / functional，可能影响 UI 显示或权限（代码层面待挖）</li>
+    <li><strong style="color:var(--text)">bots[].status</strong> · running / pending —— pending 是已配置但尚未拉起容器</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>13 个 bot 全清单</h2>
+
+  <div class="bot-table">
+    <div class="bot-row head"><div>name</div><div>nanobot_port</div><div>tier</div><div>status</div><div>note</div><div></div></div>
+    <div class="bot-row master"><div class="bn">agent-primary</div><div class="port">:3101*</div><div class="tier" style="background:var(--accent-dim);color:var(--accent)">master</div><div class="status running">running</div><div class="note">主 bot · Mitchell · 不在 fleet.json</div></div>
+    <div class="bot-row"><div class="bn">echo-agent</div><div class="port">:??*</div><div class="tier member">member</div><div class="status running">running</div><div class="note">不在 fleet.json，独立配置</div></div>
+    <div class="bot-row"><div class="bn">skin-01</div><div class="port">:3104</div><div class="tier senior">senior</div><div class="status running">running</div><div class="note">⚠ 用 openai-codex/gpt-5.5，不是 Bedrock</div></div>
+    <div class="bot-row"><div class="bn">skin-02</div><div class="port">:3106</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-03</div><div class="port">:3108</div><div class="tier senior">senior</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-04</div><div class="port">:3110</div><div class="tier senior">senior</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-05</div><div class="port">:3114</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-06</div><div class="port">:3116</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-07</div><div class="port">:3118</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-08</div><div class="port">:3122</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row"><div class="bn">skin-09</div><div class="port">:3124</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row pending"><div class="bn">skin-10</div><div class="port">:3126</div><div class="tier member">member</div><div class="status pending">pending</div><div class="note">缺 .env / LARK_APP_SECRET</div></div>
+    <div class="bot-row"><div class="bn">skin-11</div><div class="port">:3128</div><div class="tier member">member</div><div class="status running">running</div><div class="note"></div></div>
+    <div class="bot-row pending"><div class="bn">fin-bot</div><div class="port">:3130</div><div class="tier functional">functional</div><div class="status pending">pending</div><div class="note">⚠ stays on OpenClaw（不迁 nanobot）</div></div>
+    <div class="bot-row"><div class="bn">skin-12</div><div class="port">:3132</div><div class="tier senior">senior</div><div class="status running">running</div><div class="note"></div></div>
+  </div>
+
+  <p style="margin-top:14px;color:var(--muted);font-size:12.5px">* Athena / Echo 不在 fleet.json，由独立 systemd / docker-compose 启动；其他 13 个由 fleet 调度起。</p>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>线上实测 · 容器全 healthy</h2>
+
+  <p>2026-05-13 17:00 通过 SSM 跑 <code>docker ps</code>：</p>
+
+  <div class="evidence">
+$ docker ps -a | grep nanobot
+13 containers · all image: the-platform/nanobot-agent:1f03a46
+status: Up 7 hours (healthy)
+  </div>
+
+  <p>13 个全部 healthy，全部用同一镜像 hash <code>1f03a46</code>：</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div class="live-row"><span class="lname">agent-primary</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">echo-agent</span><span class="lhash">ee849642e373*</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-01-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-02-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-03-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-04-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-05-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-06-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-07-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-08-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-09-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-11-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+    <div class="live-row"><span class="lname">skin-12-nanobot</span><span class="lhash">1f03a46</span><span class="lstat">healthy</span></div>
+  </div>
+
+  <p style="color:var(--muted);font-size:12px;margin-top:8px">* Echo 的镜像 ID 不同 —— Echo 用本地 build 镜像，不走 ECR pull。注意它跟 fleet 完全独立的迹象。</p>
+
+  <div class="callout">
+    <strong>对比 2 天前快照：</strong> 5 月 11 日扫描时，11 个 skin nanobot 全部 Restarting（旧镜像 062d3e3 部署崩了）。现在所有 13 个都 healthy 在新镜像 1f03a46 —— <strong>fleet 部署能力很稳，集体升级是常态</strong>。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>每个 bot 的差异化 · 三层 override</h2>
+
+  <p>同一镜像怎么变出不同人格？三层叠加：</p>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px;font-weight:600">叠加顺序 · 上层覆盖下层</div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="background:var(--purple-dim);border-left:3px solid var(--purple);padding:12px 16px;border-radius:0 6px 6px 0">
+        <div style="font-family:'SF Mono',monospace;font-weight:600;color:var(--purple);font-size:13px;margin-bottom:2px">defaults (fleet.json)</div>
+        <div style="color:var(--muted);font-size:12px">llm_model · context_window · workspace 路径 · VectorDB_url · max_iterations=100</div>
+      </div>
+      <div style="background:var(--blue-dim);border-left:3px solid var(--blue);padding:12px 16px;border-radius:0 6px 6px 0">
+        <div style="font-family:'SF Mono',monospace;font-weight:600;color:var(--blue);font-size:13px;margin-bottom:2px">per-bot (fleet.json bots[i])</div>
+        <div style="color:var(--muted);font-size:12px">name · app_id · 端口 · tier · 可选 override llm_model（如 skin-01 用 codex）</div>
+      </div>
+      <div style="background:var(--green-dim);border-left:3px solid var(--green);padding:12px 16px;border-radius:0 6px 6px 0">
+        <div style="font-family:'SF Mono',monospace;font-weight:600;color:var(--green);font-size:13px;margin-bottom:2px">runtime · skin files</div>
+        <div style="color:var(--muted);font-size:12px">挂载 <code>/home/ubuntu/agent-skins-data/prod/skins/{name}/</code> → 容器内 SOUL.md/IDENTITY.md/USER.md/AGENTS.md 决定人格</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>Volume 挂载 · 共享 vs 隔离</h2>
+
+  <p>每个 bot 容器有两个关键 mount，一个共享一个隔离：</p>
+
+  <div class="mount-diagram">
+    <div class="mount-row">
+      <div class="mount-side host">
+        <div class="ml">host (EC2)</div>
+        /home/ubuntu/agent-data/prod/workspace/
+        <div class="desc">所有 bot 共享 —— skills / 共用文件区 / MEMORY.md 等</div>
+      </div>
+      <div class="arr">→</div>
+      <div class="mount-side container">
+        <div class="ml">container</div>
+        /root/.nanobot/workspace
+        <div class="desc">共用：MEMORY.md / SOUL.md 全 fleet 一样</div>
+      </div>
+    </div>
+
+    <div class="mount-row">
+      <div class="mount-side host">
+        <div class="ml">host (EC2)</div>
+        /home/ubuntu/agent-skins-data/prod/skins/{bot_name}/
+        <div class="desc">per-bot 隔离 —— 每个 skin 自己一套 4 个 markdown</div>
+      </div>
+      <div class="arr">→</div>
+      <div class="mount-side container">
+        <div class="ml">container</div>
+        /root/.nanobot/identity
+        <div class="desc">独有：每个 bot 的 IDENTITY/SOUL/USER/AGENTS</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>共享 workspace 的隐患：</strong> 13 个 bot 同时读写 <code>/root/.nanobot/workspace</code> —— 如果两个 bot 同时 git commit MEMORY.md 会冲突。memory.py 用 GitStore 包了一层但仍可能 race。<strong>实际生产中没爆过</strong>，因为 13 个 bot 同时大改的场景极少。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>特殊 bot · skin-01 的"叛逆"</h2>
+
+  <p>13 个 bot 里 <code>skin-01</code> 是<strong>叛徒</strong> —— 它不用 Bedrock Claude：</p>
+
+  <pre>{
+  <span class="key">"name"</span>: <span class="str">"skin-01"</span>,
+  <span class="key">"tier"</span>: <span class="str">"senior"</span>,
+  <span class="key">"llm_model"</span>: <span class="str">"openai-codex/gpt-5.5"</span>,        <span class="com">// 不是 Bedrock</span>
+  <span class="key">"subagent_model"</span>: <span class="str">"openai-codex/gpt-5.5"</span>,
+  <span class="key">"oauth_token_path"</span>: <span class="str">"/root/.nanobot/auth/codex.json"</span>
+}</pre>
+
+  <p>对应的容器还跑了一个本地 build 镜像 <code>skin-01-gateway:local</code>（而不是 ECR）—— 这是<strong>多 provider 探索的活实验</strong>，team 想看不同模型在同样 fleet 框架下表现差异。</p>
+
+  <div class="callout">
+    <strong>架构上的优雅：</strong> fleet 框架不关心 llm_model 是 Claude / GPT / Gemini —— provider 抽象在 nanobot/providers/ 下，<code>oauth_token_path</code> 也只是 env override。<strong>加新 provider 不动 fleet 代码，只改一个 bot 配置</strong>。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>特殊 bot · fin-bot 拒绝迁移</h2>
+
+  <p><code>fin-bot</code> 状态是 <strong>pending</strong>，note 写 "stays on OpenClaw"。表示这个 bot 还在<strong>老 TypeScript 栈</strong>上跑（<code>agent-fin-prod</code> 容器，agent-gateway 镜像），<strong>没打算迁到 nanobot</strong>。</p>
+
+  <p>原因可能（推测，未确认）：</p>
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">tier 是 "functional"</strong> 而不是 senior/member —— 性质不同（功能性 bot，不是分身）</li>
+    <li>fin-bot 跑财务 / cost 相关任务，<strong>稳定性比新功能优先级高</strong></li>
+    <li>OpenClaw TS 栈现有逻辑充分够用，迁移 ROI 低</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>启动流程 · 一个 bot 从 0 到 healthy</h2>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px">
+    <div style="display:flex;flex-direction:column;gap:6px;font-family:'SF Mono',monospace;font-size:12px">
+      <div style="background:var(--card-2);padding:8px 14px;border-radius:6px"><span style="color:var(--accent);font-weight:600">[1]</span> docker pull the-platform/nanobot-agent:1f03a46</div>
+      <div style="text-align:center;color:var(--muted);font-size:14px">↓</div>
+      <div style="background:var(--card-2);padding:8px 14px;border-radius:6px"><span style="color:var(--accent);font-weight:600">[2]</span> docker run --name skin-07-nanobot \<br>&nbsp;&nbsp;&nbsp;-e AGENT_NAME=skin-07 \<br>&nbsp;&nbsp;&nbsp;-e LARK_APP_ID=cli_a921e8456... \<br>&nbsp;&nbsp;&nbsp;-e LARK_APP_SECRET=... \<br>&nbsp;&nbsp;&nbsp;-e PORT=3118 \<br>&nbsp;&nbsp;&nbsp;-v /home/ubuntu/agent-data/prod/workspace:/root/.nanobot/workspace \<br>&nbsp;&nbsp;&nbsp;-v /home/ubuntu/agent-skins-data/prod/skins/skin-07:/root/.nanobot/identity \<br>&nbsp;&nbsp;&nbsp;-p 3118:3118 ...</div>
+      <div style="text-align:center;color:var(--muted);font-size:14px">↓</div>
+      <div style="background:var(--card-2);padding:8px 14px;border-radius:6px"><span style="color:var(--accent);font-weight:600">[3]</span> 容器内 python nanobot_server.py</div>
+      <div style="text-align:center;color:var(--muted);font-size:14px">↓</div>
+      <div style="background:var(--card-2);padding:8px 14px;border-radius:6px"><span style="color:var(--accent);font-weight:600">[4]</span> FastAPI 启动 + ContextBuilder 读 SOUL/IDENTITY → 人格成型</div>
+      <div style="text-align:center;color:var(--muted);font-size:14px">↓</div>
+      <div style="background:var(--card-2);padding:8px 14px;border-radius:6px"><span style="color:var(--accent);font-weight:600">[5]</span> Hatchet worker 注册（独立线程）+ MCP servers lazy 连接</div>
+      <div style="text-align:center;color:var(--muted);font-size:14px">↓</div>
+      <div style="background:var(--green-dim);padding:8px 14px;border-radius:6px;color:var(--green)"><span style="font-weight:600">[6]</span> /health 200 OK · Docker healthcheck 通过 → healthy</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>整 fleet 升级 · 一行命令换全员脑子</h2>
+
+  <p>fleet 设计最大的运维价值是<strong>原子升级</strong>：</p>
+
+  <ol style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>auto-agent/ 仓库 commit → CI 构建 <code>the-platform/nanobot-agent:{new_hash}</code> 推 ECR</li>
+    <li>fleet 部署脚本：遍历 13 bot，<code>docker pull</code> 新版 → <code>docker stop &amp;&amp; docker rm &amp;&amp; docker run</code></li>
+    <li>每个 bot 用<strong style="color:var(--text)">同一新镜像</strong>启动 —— 7 小时内升级全员（实测 17:00 部署版本 7h 前完成）</li>
+    <li>问题模式：旧版本部署崩（如 5/11 那次 11 个 Restarting），从 ECR 重 pull 修好</li>
+  </ol>
+
+  <div class="callout">
+    <strong>横向对比 Cetus：</strong> Cetus 那边每个租户一个独立镜像 hash（22 个不同），<strong>滚动升级</strong>更复杂。Agent fleet 因为是"自家分身"（不是付费客户），可以全员同步升级 —— 简单，快，但 blast radius 大。
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/nanobot-fleet.json</code>（13 bot 配置）<br>
+    线上实测 · Agent EC2 docker ps（2026-05-13 · 13 个 *-nanobot 全 healthy · image 1f03a46）
+  </div>
+
+</div>
+</body>
+</html>

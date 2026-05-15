@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athena 架构深扒 · 高频内部 bot 的实际形态</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card-2: #1c2230;
+    --card-3: #232a3a;
+    --border: #2a3142;
+    --border-strong: #3a4256;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #ff8c42;
+    --accent-dim: rgba(255, 140, 66, 0.12);
+    --green: #3fb950;
+    --green-dim: rgba(63, 185, 80, 0.15);
+    --yellow: #d29922;
+    --yellow-dim: rgba(210, 153, 34, 0.15);
+    --red: #f85149;
+    --red-dim: rgba(248, 81, 73, 0.12);
+    --blue: #58a6ff;
+    --blue-dim: rgba(88, 166, 255, 0.12);
+    --purple: #bc8cff;
+    --purple-dim: rgba(188, 140, 255, 0.12);
+    --pink: #ff7eb6;
+    --pink-dim: rgba(255, 126, 182, 0.12);
+    --cyan: #56d4dd;
+    --cyan-dim: rgba(86, 212, 221, 0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    line-height: 1.6;
+    font-size: 14.5px;
+  }
+  .topbar {
+    background: rgba(13,17,23,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .topbar a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+  .topbar a:hover { background: var(--card); color: var(--text); }
+  .topbar .title {
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+  .topbar .title strong { color: var(--text); margin-left: 4px; }
+
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 28px 80px;
+  }
+  .hero h1 {
+    font-size: 30px;
+    font-weight: 600;
+    margin: 0 0 6px;
+    letter-spacing: -0.02em;
+  }
+  .hero .sub { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+  .lead {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+  .lead strong { color: var(--accent); font-weight: 600; }
+
+  h2.section {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin: 44px 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2.section .num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  p { margin: 8px 0 14px; }
+
+  /* ============= Flow diagram (vertical) ============= */
+  .flow-vert {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .node {
+    background: var(--card-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 12px 22px;
+    min-width: 320px;
+    text-align: center;
+    font-size: 14px;
+  }
+  .node .name { font-weight: 600; }
+  .node .meta { color: var(--muted); font-size: 11.5px; margin-top: 4px; font-family: "SF Mono", Menlo, monospace; }
+  .node.user { background: var(--card-3); border-style: dashed; }
+  .node.webhook { border-color: var(--cyan); background: var(--cyan-dim); }
+  .node.webhook .name { color: var(--cyan); }
+  .node.dedup { border-color: var(--yellow); background: var(--yellow-dim); }
+  .node.dedup .name { color: var(--yellow); }
+  .node.hatchet { border-color: var(--purple); background: var(--purple-dim); padding: 16px 22px; min-width: 540px; }
+  .node.hatchet .name { color: var(--purple); }
+  .node.output { border-color: var(--green); background: var(--green-dim); }
+  .node.output .name { color: var(--green); }
+
+  .arrow { color: var(--muted); font-size: 22px; line-height: 1; user-select: none; }
+
+  /* Inner steps inside hatchet box */
+  .inner-steps {
+    background: var(--card);
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+  }
+  .inner-step {
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    background: var(--card-2);
+    font-size: 12.5px;
+  }
+  .inner-step .idx {
+    background: var(--purple-dim);
+    color: var(--purple);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-weight: 600;
+  }
+  .inner-step .tag {
+    background: var(--card-3);
+    color: var(--muted);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .inner-step .tag.async { color: var(--blue); background: var(--blue-dim); }
+  .inner-step .tag.timeout { color: var(--yellow); background: var(--yellow-dim); }
+
+  /* ============= Difficulty router ============= */
+  .layer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .layer-num {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: 8px;
+    text-align: center;
+    padding: 14px 0;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .layer-card .lname { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .layer-card .ldetail { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+  .layer-card .cost-tag {
+    display: inline-block;
+    background: var(--green-dim);
+    color: var(--green);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10.5px;
+    margin-left: 6px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
+  .router-out {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px;
+  }
+  .out-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+  .out-cat {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    background: var(--card-2);
+    padding: 2px 8px;
+    border-radius: 3px;
+    color: var(--muted);
+  }
+  .out-arrow { color: var(--muted); }
+  .out-model {
+    font-weight: 600;
+    margin-left: auto;
+  }
+  .out-model.sonnet { color: var(--blue); }
+  .out-model.opus { color: var(--pink); }
+
+  /* ============= Agent loop diagram ============= */
+  .loop-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    position: relative;
+  }
+  .loop-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .loop-grid {
+    display: grid;
+    grid-template-columns: 1fr 200px;
+    gap: 20px;
+  }
+  @media (max-width: 760px) { .loop-grid { grid-template-columns: 1fr; } }
+  .loop-iter {
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+  }
+  .loop-iter::before {
+    content: "iteration loop";
+    position: absolute;
+    top: -10px;
+    left: 14px;
+    background: var(--card);
+    padding: 0 8px;
+    font-size: 10.5px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .iter-step {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 10px;
+    padding: 8px 6px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .iter-step:last-child { border-bottom: none; }
+  .iter-step .ii {
+    background: var(--accent-dim);
+    color: var(--accent);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .iter-step .label { font-size: 13px; }
+  .iter-step .hint { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+  .hooks-panel {
+    background: var(--card-2);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .hooks-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .hook-item {
+    background: var(--card-3);
+    border-left: 2px solid var(--accent);
+    border-radius: 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .hook-item .hk { font-family: "SF Mono", Menlo, monospace; font-weight: 600; color: var(--accent); }
+  .hook-item .hd { color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+  /* tools / skills bar */
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .chip {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 9px;
+    font-size: 11.5px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--text);
+  }
+  .chip.tool { border-left: 2px solid var(--green); }
+  .chip.skill { border-left: 2px solid var(--cyan); }
+
+  /* ============= 7-step autopilot ============= */
+  .steps-table {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .step-row {
+    display: grid;
+    grid-template-columns: 56px 60px 1fr 120px;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    transition: background 0.15s;
+  }
+  .step-row:last-child { border-bottom: none; }
+  .step-row:hover { background: var(--card-2); }
+  .step-row.human { background: rgba(210, 153, 34, 0.05); }
+  .step-row .sn {
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .step-row .emoji { font-size: 22px; }
+  .step-row .label-block .l { font-weight: 600; font-size: 14.5px; margin-bottom: 2px; }
+  .step-row .label-block .d { color: var(--muted); font-size: 12px; }
+  .step-row .badge {
+    text-align: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .badge.auto { background: var(--green-dim); color: var(--green); }
+  .badge.human { background: var(--yellow-dim); color: var(--yellow); }
+
+  /* ============= Storage layers ============= */
+  .storage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+  }
+  .storage {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    border-left: 3px solid var(--accent);
+  }
+  .storage.purple { border-left-color: var(--purple); }
+  .storage.blue { border-left-color: var(--blue); }
+  .storage.green { border-left-color: var(--green); }
+  .storage.cyan { border-left-color: var(--cyan); }
+  .storage.pink { border-left-color: var(--pink); }
+  .storage .stitle { font-weight: 600; margin-bottom: 4px; font-size: 14.5px; }
+  .storage .stech {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .storage .scontent { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+  .storage .scontent strong { color: var(--text); font-weight: 500; }
+
+  /* Fleet */
+  .fleet {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .fleet-image {
+    text-align: center;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    color: var(--accent);
+    padding: 12px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .fleet-image .sub { color: var(--muted); font-weight: 400; font-size: 11.5px; margin-top: 2px; font-family: "SF Mono", Menlo, monospace; }
+  .agent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px;
+  }
+  .agent-chip {
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+  }
+  .agent-chip .port { color: var(--muted); font-size: 10.5px; }
+  .agent-chip.primary { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+
+  /* Fragile spots */
+  .danger-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+  }
+  .danger {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--red);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .danger .dt { font-weight: 600; color: var(--red); font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; margin-bottom: 4px; }
+  .danger .dd { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+
+  /* Misc */
+  .footer {
+    margin-top: 56px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11.5px;
+  }
+  code, .mono {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    background: var(--card-2);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--blue);
+  }
+  .callout {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .callout.warn { border-left-color: var(--yellow); }
+  .callout strong { color: var(--blue); }
+  .callout.warn strong { color: var(--yellow); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>Athena 架构深扒</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>Athena 架构深扒</h1>
+    <div class="sub">从 <code>auto-agent/</code> 源码出发，看清楚"高频使用的 Athena"实际怎么转</div>
+  </div>
+
+  <div class="lead">
+    Athena 不是普通聊天 bot —— 它是 <strong>TikTok 红人营销活动的 AI 经理</strong>。每天定时跑一遍 7 步 autopilot（其中 2 步要在 IM platform 上点按钮人工确认），同时接团队成员的 ad-hoc 提问。底层是 <strong>Bedrock Claude + Hatchet durable task + pgvector 长期记忆</strong> 三件套。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>一条消息走过的路</h2>
+
+  <p>用户在 IM 群 @Athena 发消息后，从 webhook 进来到看到回复，要经过 <strong>去重 → Hatchet durable task → 5 个内部子步骤 → 卡片更新</strong>。Hatchet 这层是关键 —— 它让整个流程<strong>容器重启也能续传</strong>。</p>
+
+  <div class="flow-vert">
+    <div class="node user">
+      <div class="name">用户在 IM 群 @Athena 发消息</div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="node webhook">
+      <div class="name">/webhook 接收 (FastAPI)</div>
+      <div class="meta">签名校验 + 解包 IM platform event</div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="node dedup">
+      <div class="name">message_id 去重</div>
+      <div class="meta">_processed_messages set，挡住 IM platform 的重试</div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="node hatchet">
+      <div class="name">Hatchet durable task</div>
+      <div class="meta">message_handler_task · 30 min timeout · crash-safe</div>
+      <div class="inner-steps">
+        <div class="inner-step">
+          <div class="idx">1</div>
+          <div><strong>Memory search</strong> · pgvector 找历史相关条目</div>
+          <div class="tag async">async 不阻塞</div>
+        </div>
+        <div class="inner-step">
+          <div class="idx">2</div>
+          <div><strong>Preference extraction</strong> · Gemini Flash 抽用户偏好</div>
+          <div class="tag timeout">3s 超时跳过</div>
+        </div>
+        <div class="inner-step">
+          <div class="idx">3</div>
+          <div><strong>Difficulty routing</strong> · 决定调 Sonnet 还是 Opus</div>
+          <div class="tag">3 层</div>
+        </div>
+        <div class="inner-step">
+          <div class="idx">4</div>
+          <div><strong>nanobot AgentLoop</strong> · 真正的"思考"在这里</div>
+          <div class="tag">Bedrock + tools</div>
+        </div>
+        <div class="inner-step">
+          <div class="idx">5</div>
+          <div><strong>Memory save</strong> · 这轮对话存进 pgvector</div>
+          <div class="tag async">async 不阻塞</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="node output">
+      <div class="name">更新 IM 卡片</div>
+      <div class="meta">thinking → working → final</div>
+    </div>
+    <div class="arrow">↓</div>
+
+    <div class="node user">
+      <div class="name">用户在 IM platform 群看到回复 ✓</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>为什么用 Hatchet？</strong> 一次 agent 跑下来可能要几分钟（LLM 调多次 + 工具调用），如果中途容器挂了，普通 background task 就丢了。Hatchet 把任务持久化，重启后能续传 —— Athena 不丢消息的关键。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>难度路由 · 决定调 Sonnet 还是 Opus</h2>
+
+  <p>Athena 一天处理几千条消息，<strong>不能每条都用 Opus</strong>（贵 5×）。所以加了 3 层路由：能快判就快判，判不出就调便宜的 LLM 判，最后兜底 regex。</p>
+
+  <div class="layer-card">
+    <div class="layer-num">1</div>
+    <div>
+      <div class="lname">硬规则 <span class="cost-tag">零成本 · 0ms</span></div>
+      <div class="ldetail">纯文本判定 —— 是 greeting？是 image？是 code block？是 stack trace？命中直接分类，不走 LLM。</div>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-num">2</div>
+    <div>
+      <div class="lname">Gemini Nova Micro 判官 <span class="cost-tag">$0.000007/call · &lt;1s</span></div>
+      <div class="ldetail">硬规则没命中，调最便宜的小模型当裁判，输出 1-5 难度 + 分类标签。便宜到可以为每条消息都跑一次。</div>
+    </div>
+  </div>
+
+  <div class="layer-card">
+    <div class="layer-num">3</div>
+    <div>
+      <div class="lname">Heuristic 兜底 <span class="cost-tag">regex 评分 · 0ms</span></div>
+      <div class="ldetail">Gemini 超时 / 失败时，老 V1 的 regex 评分逻辑兜住，保证<strong>绝不挂</strong>。</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>路由结果：</strong>
+  </div>
+
+  <div class="router-out">
+    <div class="out-row"><span class="out-cat">GREETING</span><span class="out-arrow">→</span><span style="color: var(--muted)">难度 1</span><span class="out-model sonnet">Sonnet</span></div>
+    <div class="out-row"><span class="out-cat">SIMPLE</span><span class="out-arrow">→</span><span style="color: var(--muted)">难度 2</span><span class="out-model sonnet">Sonnet</span></div>
+    <div class="out-row"><span class="out-cat">CREATIVE</span><span class="out-arrow">→</span><span style="color: var(--muted)">难度 3</span><span class="out-model sonnet">Sonnet</span></div>
+    <div class="out-row"><span class="out-cat">CODING</span><span class="out-arrow">→</span><span style="color: var(--muted)">难度 4</span><span class="out-model opus">Opus</span></div>
+    <div class="out-row"><span class="out-cat">ANALYSIS</span><span class="out-arrow">→</span><span style="color: var(--muted)">难度 4</span><span class="out-model opus">Opus</span></div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>Agent Loop · 真正的"思考"</h2>
+
+  <p>路由完，请求交给 <code>nanobot/agent/loop.py</code> 里的 AgentLoop —— 这是 Athena 的"大脑循环"。每一轮 iteration 都按固定步骤跑，工具调用结果回炉再炼，直到 LLM 说"我答完了"。</p>
+
+  <div class="loop-box">
+    <div class="loop-title">AgentRunner → AgentLoop iteration</div>
+
+    <div class="loop-grid">
+      <div class="loop-iter">
+        <div class="iter-step">
+          <div class="ii">1</div>
+          <div>
+            <div class="label">ContextBuilder 装上下文</div>
+            <div class="hint">注入 SOUL.md（人格）+ lessons（历史教训）+ memory（pgvector 检索结果）+ 当前对话</div>
+          </div>
+        </div>
+        <div class="iter-step">
+          <div class="ii">2</div>
+          <div>
+            <div class="label">Bedrock 调用</div>
+            <div class="hint">Sonnet 或 Opus，流式输出，TTFT 实时上报</div>
+          </div>
+        </div>
+        <div class="iter-step">
+          <div class="ii">3</div>
+          <div>
+            <div class="label">解析 tool_use</div>
+            <div class="hint">LLM 要不要调工具？要的话调哪个、什么参数</div>
+          </div>
+        </div>
+        <div class="iter-step">
+          <div class="ii">4</div>
+          <div>
+            <div class="label">执行工具</div>
+            <div class="hint">filesystem / shell / web 等都在容器里跑，spawn 工具可以开子 agent</div>
+          </div>
+        </div>
+        <div class="iter-step">
+          <div class="ii">5</div>
+          <div>
+            <div class="label">回炉</div>
+            <div class="hint">把工具结果拼回 context，进入下一轮 iteration</div>
+          </div>
+        </div>
+        <div class="iter-step">
+          <div class="ii">↺</div>
+          <div>
+            <div class="label">循环直到 LLM 说完成</div>
+            <div class="hint">或者 hit 最大 iteration 上限</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hooks-panel">
+        <div class="hooks-title">Hooks（每轮都跑）</div>
+        <div class="hook-item">
+          <div class="hk">compaction</div>
+          <div class="hd">context &gt; 70% 预算时裁剪：保留最后 3 条 assistant，旧的软裁前后 1500 char，&gt;1h 硬清空</div>
+        </div>
+        <div class="hook-item">
+          <div class="hk">checkpoint</div>
+          <div class="hd">每 iter 保存 state 到 <code style="color:var(--muted);background:transparent;padding:0">.checkpoints/</code>，崩了能续</div>
+        </div>
+        <div class="hook-item">
+          <div class="hk">otel</div>
+          <div class="hd">上报 metrics（TTFT、tokens、tool calls）到 OpenTelemetry / Jaeger</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 18px;">
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 8px;">内建工具集</div>
+      <div class="chip-row">
+        <div class="chip tool">ReadFile</div>
+        <div class="chip tool">WriteFile</div>
+        <div class="chip tool">EditFile</div>
+        <div class="chip tool">ListDir</div>
+        <div class="chip tool">Glob</div>
+        <div class="chip tool">Grep</div>
+        <div class="chip tool">Exec (shell)</div>
+        <div class="chip tool">WebFetch</div>
+        <div class="chip tool">WebSearch</div>
+        <div class="chip tool">Spawn (sub-agent)</div>
+        <div class="chip tool">Message (IM platform)</div>
+        <div class="chip tool">Cron</div>
+      </div>
+
+      <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 16px 0 8px;">Skills（动态加载）</div>
+      <div class="chip-row">
+        <div class="chip skill">clawhub</div>
+        <div class="chip skill">github</div>
+        <div class="chip skill">memory</div>
+        <div class="chip skill">system-map</div>
+        <div class="chip skill">summarize</div>
+        <div class="chip skill">cron</div>
+        <div class="chip skill">tmux</div>
+        <div class="chip skill">weather</div>
+        <div class="chip skill">skill-creator</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>每日 Auto-Pilot · 7 步营销活动管理</h2>
+
+  <p>这是 Athena 的"招牌业务"。每天定时（或手动 <code>POST /autopilot [campaign_id]</code>）触发，跑完一整套 TikTok 红人活动的诊断 → 决策 → 报告流程。<strong>Step 3 和 Step 4 需要人在 IM platform 卡片上点按钮</strong>（确认 / 跳过 / 取消），其他 5 步全自动。</p>
+
+  <div class="steps-table">
+    <div class="step-row">
+      <div class="sn">Step 1</div>
+      <div class="emoji">📊</div>
+      <div class="label-block"><div class="l">Campaign Performance</div><div class="d">拉当前活动的整体表现数据，建立 baseline</div></div>
+      <div class="badge auto">AUTO</div>
+    </div>
+    <div class="step-row">
+      <div class="sn">Step 2</div>
+      <div class="emoji">🌟</div>
+      <div class="label-block"><div class="l">Top Creators Analysis</div><div class="d">挑出表现最好的创作者，提炼共性</div></div>
+      <div class="badge auto">AUTO</div>
+    </div>
+    <div class="step-row human">
+      <div class="sn">Step 3</div>
+      <div class="emoji">🔍</div>
+      <div class="label-block"><div class="l">Underperformer Diagnosis</div><div class="d">诊断表现差的创作者；决定 CUT 谁，<strong style="color:var(--yellow)">需人工在 IM platform 确认</strong></div></div>
+      <div class="badge human">HUMAN ✋</div>
+    </div>
+    <div class="step-row human">
+      <div class="sn">Step 4</div>
+      <div class="emoji">🔄</div>
+      <div class="label-block"><div class="l">Creator Replacement</div><div class="d">给被 cut 的位置找 3 个候选替补；<strong style="color:var(--yellow)">需人工在 IM platform 确认</strong></div></div>
+      <div class="badge human">HUMAN ✋</div>
+    </div>
+    <div class="step-row">
+      <div class="sn">Step 5</div>
+      <div class="emoji">🎬</div>
+      <div class="label-block"><div class="l">Video Review</div><div class="d">review 这一批新视频内容，标记需要返工 / 优秀样本</div></div>
+      <div class="badge auto">AUTO</div>
+    </div>
+    <div class="step-row">
+      <div class="sn">Step 6</div>
+      <div class="emoji">📡</div>
+      <div class="label-block"><div class="l">Competitive Intel</div><div class="d">扫竞品 / 同类活动近期动作</div></div>
+      <div class="badge auto">AUTO</div>
+    </div>
+    <div class="step-row">
+      <div class="sn">Step 7</div>
+      <div class="emoji">📝</div>
+      <div class="label-block"><div class="l">Daily Report</div><div class="d">把前 6 步汇总成日报，发回 IM 群</div></div>
+      <div class="badge auto">AUTO</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Hatchet event 关键约束：</strong> 每步等待人工确认时，event key 必须是<strong>固定值</strong>（不能动态拼参数）—— 动态 key 会在容器重启时丢消息。改用 CEL filter 区分事件。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>存储分层 · 数据各回各家</h2>
+
+  <p>Athena 有 5 类数据，分别住在 5 个地方。这是个常见的复杂点 —— 不同生命周期、不同访问模式必须分开。</p>
+
+  <div class="storage-grid">
+    <div class="storage purple">
+      <div class="stitle">长期语义记忆</div>
+      <div class="stech">VectorDB · pgvector + Gemini embedding-001 (3072-dim)</div>
+      <div class="scontent">存历史对话、用户偏好、过往结论。<strong>cosine &gt; 0.9 自动合并去重</strong>；<strong>&gt; 1 天的条目</strong>读出来时自动加 caveat（"这是旧信息"）。</div>
+    </div>
+    <div class="storage blue">
+      <div class="stitle">租户 / Agent / 配额</div>
+      <div class="stech">PostgreSQL · src/admin/schema.sql</div>
+      <div class="scontent"><strong>tenants</strong>（租户）· <strong>agents</strong>（每个 bot）· <strong>api_keys</strong>（hashed）· <strong>usage_events</strong>（计费日志）。启动时 <code>ensure_schema()</code> 初始化。</div>
+    </div>
+    <div class="storage cyan">
+      <div class="stitle">IM platform 卡片生命周期</div>
+      <div class="stech">SQLite · card_lifecycle.db</div>
+      <div class="scontent">卡片状态（thinking / working / final）持久化，<strong>容器重启不丢</strong>。30s 跑一次后台 reconciler 修复孤儿卡片。</div>
+    </div>
+    <div class="storage green">
+      <div class="stitle">Iteration checkpoint</div>
+      <div class="stech">文件系统 · workspace/.checkpoints/</div>
+      <div class="scontent">Agent loop 每轮保存一次完整 state。崩了重启可以从最后 checkpoint 续 —— 不用从头重跑。</div>
+    </div>
+    <div class="storage pink">
+      <div class="stitle">Workflow 运行状态</div>
+      <div class="stech">FastAPI backend + 本地 JSON fallback</div>
+      <div class="scontent">7 步 workflow 的运行记录（哪步在跑、哪步完成）。<strong>双重存储</strong>：API 不可用时回退本地 JSON，保证不卡。</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>Fleet 部署 · 一份代码、多个分身</h2>
+
+  <p>Athena 主 bot 只是 <code>nanobot-fleet.json</code> 注册表里的一项。同一份镜像，通过<strong>端口偏移</strong>和<strong>不同的 identity 目录</strong>，跑出 13 个独立人格 —— Athena / Echo / Skin-01 / Skin-02 / ...</p>
+
+  <div class="fleet">
+    <div class="fleet-image">
+      the-platform/nanobot-agent:&lt;tag&gt;
+      <div class="sub">同一镜像，13 个容器实例</div>
+    </div>
+
+    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin: 12px 0 8px;">每个 agent 的差异 = env vars + 文件路径</div>
+
+    <div class="agent-grid">
+      <div class="agent-chip primary">Athena<span class="port">:3101</span></div>
+      <div class="agent-chip">Echo<span class="port">:3102</span></div>
+      <div class="agent-chip">skin-01<span class="port">:3104</span></div>
+      <div class="agent-chip">skin-02<span class="port">:3106</span></div>
+      <div class="agent-chip">+ 9 个 skin-bots<span class="port">3107+</span></div>
+    </div>
+
+    <div style="margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+      <div style="background: var(--card-2); border-radius: 6px; padding: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px;">共享 workspace</div>
+        <div style="font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text);">/home/ubuntu/agent-data/prod/workspace/</div>
+        <div style="font-size: 11.5px; color: var(--muted); margin-top: 4px;">所有 agent 共用的对话历史 / 文件区</div>
+      </div>
+      <div style="background: var(--card-2); border-radius: 6px; padding: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px;">per-agent identity</div>
+        <div style="font-family: 'SF Mono', monospace; font-size: 12px; color: var(--text);">/home/ubuntu/agent-skins-data/prod/skins/{name}/</div>
+        <div style="font-size: 11.5px; color: var(--muted); margin-top: 4px;">每个 agent 的 SOUL.md / skills / 私有记忆</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top: 14px;">
+      <strong>SHADOW_MODE=true</strong> 可以把任意 agent 切到"影子模式"——所有 IM platform 副作用（发消息、改卡片）全部禁用。测试新 prompt 时用，不会打扰真用户。
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>已知脆弱点 · 不藏着掖着</h2>
+
+  <p>CLAUDE.md 里明确列出的 5 个已知坑。改 Athena 代码前最好先扫一遍。</p>
+
+  <div class="danger-grid">
+    <div class="danger">
+      <div class="dt">_step_card_cache 内存丢失</div>
+      <div class="dd">每步等人工确认的卡片状态存内存，容器重启就丢，按钮失效 —— 必须重发卡片才行。</div>
+    </div>
+    <div class="danger">
+      <div class="dt">_token_cache 单进程</div>
+      <div class="dd">IM token 缓存只在单进程里有效，跑多 worker 时每个 worker 都自己算一份 token，可能被 IM platform 限流。</div>
+    </div>
+    <div class="danger">
+      <div class="dt">Workflow 存储双写分裂</div>
+      <div class="dd">FastAPI backend 不可用时回退本地 JSON，但<strong>没合并逻辑</strong> —— API 恢复后 DB 和 JSON 状态可能对不上。</div>
+    </div>
+    <div class="danger">
+      <div class="dt">Compaction 时机偏晚</div>
+      <div class="dd">在 70% 预算时才触发裁剪，遇到非常长的工具输出（比如 huge grep 结果）单次就能撑爆 —— 还没等到下次裁剪就已经超了。</div>
+    </div>
+    <div class="danger">
+      <div class="dt">nanobot-ai pkg 未 pin</div>
+      <div class="dd">PyPI 包没钉版本号，上游静默 API 变更会突然挂掉。重建镜像前最好确认版本。</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    本图基于 <code style="background:transparent;color:var(--muted)">auto-agent/CLAUDE.md</code> 和 <code style="background:transparent;color:var(--muted)">auto-agent/{difficulty.py, workflow/steps.py, nanobot/agent/loop.py}</code> 源码 · 2026-05-13 · 实际运行容器：agent-primary (image 22ecd66, Agent EC2 <EC2-A>)
+  </div>
+
+</div>
+</body>
+</html>

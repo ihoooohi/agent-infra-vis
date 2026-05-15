@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>可视化合集 · Visualizations</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --card-2: #1c2230;
+    --card-hover: #232a3a;
+    --border: #2a3142;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #ff8c42;
+    --accent-dim: rgba(255, 140, 66, 0.12);
+    --green: #3fb950;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --pink: #ff7eb6;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    line-height: 1.55;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+  .container {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 28px 80px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 32px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
+  }
+  .header .sub {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .header .path {
+    margin-top: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--muted);
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: inline-block;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .search {
+    flex: 1;
+    min-width: 240px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .search:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .stats {
+    color: var(--muted);
+    font-size: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .stats strong { color: var(--accent); font-weight: 600; }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    text-decoration: none;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    transition: all 0.15s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    background: var(--card-hover);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s;
+  }
+  .card:hover::before { transform: scaleX(1); }
+
+  .card-date {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .card-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .card-desc {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
+    flex: 1;
+    margin-bottom: 14px;
+  }
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .tag.orange { background: rgba(255,140,66,0.15); color: var(--accent); }
+  .tag.blue { background: rgba(88,166,255,0.15); color: var(--blue); }
+  .tag.green { background: rgba(63,185,80,0.15); color: var(--green); }
+  .tag.purple { background: rgba(188,140,255,0.15); color: var(--purple); }
+  .tag.pink { background: rgba(255,126,182,0.15); color: var(--pink); }
+  .tag.gray { background: var(--card-2); color: var(--muted); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 64px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .footer code {
+    background: var(--card);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11.5px;
+    color: var(--blue);
+  }
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  /* ============================================================
+     SIDEBAR · 分类切换
+     ============================================================ */
+  .layout-grid {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 28px;
+    margin-top: 8px;
+  }
+  .sidebar {
+    position: sticky;
+    top: 32px;
+    align-self: start;
+  }
+  .sidebar-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    margin: 0 0 10px;
+    padding: 0 12px;
+    font-weight: 600;
+  }
+  .cat-list { display: flex; flex-direction: column; gap: 4px; }
+  .cat-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13.5px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+    user-select: none;
+  }
+  .cat-btn:hover { background: var(--card-hover); border-color: var(--accent); }
+  .cat-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    border-left-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .cat-btn.active.cat-interview {
+    background: rgba(255,126,182,0.15);
+    border-color: var(--pink);
+    border-left-color: var(--pink);
+    color: var(--pink);
+  }
+  .cat-btn.cat-interview:hover { border-color: var(--pink); }
+  .cat-btn .cat-count {
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--card-2);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .cat-btn.active .cat-count {
+    background: rgba(0,0,0,0.3);
+    color: inherit;
+  }
+  .main-col { min-width: 0; }
+
+  /* Card cat tag (small badge on each card) */
+  .card-cat {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 9.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+  .card-cat.cat-interview { background: rgba(255,126,182,0.15); color: var(--pink); }
+
+  @media (max-width: 820px) {
+    .layout-grid { grid-template-columns: 1fr; gap: 16px; }
+    .sidebar { position: static; }
+    .cat-list { flex-direction: row; flex-wrap: wrap; }
+    .cat-btn { flex: 1; min-width: 100px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>可视化合集</h1>
+    <div class="sub">技术讲解、架构图、调研报告 · 都是 self-contained HTML，可单文件分享</div>
+    <div class="path">~/visualizations/</div>
+  </div>
+
+  <div class="layout-grid">
+    <aside class="sidebar">
+      <div class="sidebar-label">分类</div>
+      <div class="cat-list">
+        <div class="cat-btn active" data-cat="all"><span>全部</span><span class="cat-count" data-count="all">0</span></div>
+        <div class="cat-btn cat-arch" data-cat="arch"><span>架构设计</span><span class="cat-count" data-count="arch">0</span></div>
+        <div class="cat-btn cat-interview" data-cat="interview"><span>面试题</span><span class="cat-count" data-count="interview">0</span></div>
+      </div>
+    </aside>
+
+    <main class="main-col">
+      <div class="toolbar">
+        <input type="text" class="search" id="search" placeholder="搜索标题、描述、标签..." />
+        <div class="stats"><strong id="count">0</strong> 篇</div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </main>
+  </div>
+
+  <div class="footer">
+    <div class="footer-row">
+      <div>
+        新增方式 · 把 self-contained HTML 放到 <code>~/visualizations/</code>，然后在本文件 <code>entries</code> 数组里加一条
+      </div>
+      <div>
+        建议命名 · <code>YYYY-MM-DD_slug.html</code>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ============================================================
+  // 可视化条目清单 · 加新的就在这里加一条
+  // ============================================================
+  const entries = [
+    // ========== 项目复盘 / 简历向 ==========
+    {
+      file: "2026-05-14_athena-memory-pollution-fix-report.html",
+      date: "2026-05-14",
+      title: "Athena Memory Pollution · 调查→修复→对照 OpenClaw 综合报告",
+      desc: "三起线上 memory 污染事故的完整复盘 · 5 部分结构（调查/方案/OpenClaw/量化/简历金句）· 我主导 PR #2961 #2964 #3039 三个 PR ~800 LOC · 跟 OpenClaw 对照印证方向正确 · 含 STAR 浓缩版 + 4 行 bullet + 5 个常见追问应对，简历 ready-to-copy。",
+      category: "interview",
+      tags: [{text:"项目复盘",color:"orange"},{text:"memory",color:"pink"},{text:"OpenClaw",color:"blue"},{text:"简历金句",color:"green"}]
+    },
+
+    // ========== 面试题 · 准备问答 ==========
+    {
+      file: "2026-05-14_interview-openclaw-memory.html",
+      date: "2026-05-14",
+      title: "面试题 · 为什么不用 OpenClaw 的 memory",
+      desc: "面试 cheat sheet · 30 秒电梯版 + 2 分钟主答（三层论证：语言/部署形态/借鉴而非全弃）+ 4 个加分点 + 3 个常见追问应对 + 3 个雷区表 + punch line。面试前 1 分钟翻一遍。",
+      category: "interview",
+      tags: [{text:"面试",color:"pink"},{text:"build vs reuse",color:"orange"},{text:"OpenClaw",color:"blue"},{text:"memory",color:"purple"}]
+    },
+
+    // ========== 反思 / 演化考古 ==========
+    {
+      file: "2026-05-13_why-divergence.html",
+      date: "2026-05-13",
+      title: "11 · 为什么线上和代码不一样",
+      desc: "Memory 系统演化考古：从 git log 重建 18 个 PR · 5 次大重写 · 1 次 fork。3 层因果（表层技术 → 中层愿景 → 深层 fork）+ 5 个具体决策（GitStore/jsonl/Dream/Consolidator/active 工具化）+ 设计哲学对撞（个人助理 vs 团队代理）+ fork 演化树。6 条实用启示。",
+      tags: [{text:"演化考古",color:"purple"},{text:"分歧分析",color:"orange"},{text:"git log",color:"blue"},{text:"反思",color:"pink"}]
+    },
+
+    // ========== Agent Infra 系列（2026-05-13）· 10 篇深扒 ==========
+    {
+      file: "2026-05-13_observability.html",
+      date: "2026-05-13",
+      title: "10 · 监控与可观测性",
+      desc: "OTEL → Jaeger 三层 span 树（agent-turn / think-iteration / tool）· context_metrics.jsonl 5 种事件 · 最有创意：ctx_loss 检测用正则抓 agent 自己说漏的「我看不到」措辞 · UsageMeter cache 命中分价 · Prefect 聚合 → IM platform cost 日报。",
+      tags: [{text:"可观测",color:"green"},{text:"OTEL",color:"blue"},{text:"ctx_loss",color:"pink"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_cetus-multi-tenant.html",
+      date: "2026-05-13",
+      title: "09 · Cetus 多租户基础设施",
+      desc: "22 家外部客户共用一台 EC2 · tenant-gateway 是 thin HTTP router · DB SSOT + 30s routeCache · hash(tenant:agent)%200+18800 确定性端口 · JuiceFS 持久化 + S3 backend · 一行 deploy-agent.sh 加新租户 · Cloudflare Tunnel + 6 表 schema · vs Agent fleet 对比。",
+      tags: [{text:"Cetus",color:"blue"},{text:"多租户",color:"orange"},{text:"基础设施",color:"green"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_fleet-deployment.html",
+      date: "2026-05-13",
+      title: "08 · Fleet 部署架构",
+      desc: "一份镜像 the-platform/nanobot-agent · 13 个独立人格分身 · nanobot-fleet.json 是 ground truth · port_offset=100 · 三层 override（defaults / per-bot / runtime skin）· 共享 workspace + 隔离 identity · 特殊案例：skin-01 用 codex GPT-5.5、fin-bot stays on OpenClaw · 实测 13 容器全 healthy。",
+      tags: [{text:"Fleet",color:"pink"},{text:"部署",color:"blue"},{text:"nanobot",color:"green"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_autopilot-7steps.html",
+      date: "2026-05-13",
+      title: "07 · Auto-Pilot 7 步工作流",
+      desc: "Athena 主业：每日 TikTok 红人活动管理 · 7 步从 Campaign Performance → Daily Report · Step 3/4 人工 IM platform 确认（CUT/COACH/KEEP）· Mode A/B 预算注入模式 · 用户 reject 触发 reflection 沉淀进 memory · 严格搜索顺序（内部 pool → 44M DB → 跨 campaign → 外部 scraper）· 编号坑：step_id=2 实际是 Step 3/7。",
+      tags: [{text:"Auto-Pilot",color:"orange"},{text:"workflow",color:"purple"},{text:"campaign",color:"blue"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_hatchet-durable.html",
+      date: "2026-05-13",
+      title: "06 · Hatchet Durable Task",
+      desc: "为啥 Athena 跑 30 分钟、用户离线 8 小时回来按钮还能点 · execution_timeout=60m · 关键模式：固定 event type + CEL filter（动态 key 会丢消息）· 双源读（module cache + WorkflowState JSON）· async 边界可能跨进程 · 4 种 human action（confirm/reject/cancel/skip）· terminal state 推送可靠送达。",
+      tags: [{text:"Hatchet",color:"purple"},{text:"durable",color:"pink"},{text:"workflow",color:"blue"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_lark-integration.html",
+      date: "2026-05-13",
+      title: "05 · IM platform 接入 + 卡片生命周期",
+      desc: "lark/ 13 文件 3715 行 · 5 个卡片状态（thinking/working/final/stopped/error）· 同卡片反复 PATCH 造「实时打字感」· _active_cards trace_id→card_id 内存映射 · 关键反转：CLAUDE.md 说的 card_lifecycle.py SQLite 已被移除，现在纯内存 + shutdown drain · ToolTracker 渲染「我在调 X」· 双触发（IM @ + 文档评论）。",
+      tags: [{text:"IM platform",color:"blue"},{text:"卡片",color:"green"},{text:"接入",color:"pink"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_difficulty-routing.html",
+      date: "2026-05-13",
+      title: "04 · 难度路由 + 模型分级",
+      desc: "为啥 Athena 一天烧不爆 · 3 层路由：硬规则 → Bedrock Nova Micro 判官（$0.000007/call）→ V1 regex 兜底 · 5 类 GREETING/SIMPLE/CREATIVE/CODING/ANALYSIS · 难度 1-3 → Sonnet · 4-5 → Opus · 命名坑：gemini_judge.py 实际用 Nova Micro · CJK 加权评分 · contextvar 注入模型不污染全局。",
+      tags: [{text:"路由",color:"orange"},{text:"省钱",color:"green"},{text:"Bedrock",color:"blue"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_skills-system.html",
+      date: "2026-05-13",
+      title: "03 · Skills 动态加载系统",
+      desc: "Skill ≠ Tool · SKILL.md 是教 LLM 怎么用工具的说明书 · 9 个 builtin（github / weather / summarize / tmux / ...）· workspace 优先覆盖 builtin · 两种模式：always 整段注入 vs 渐进式加载省 token · _archived/ 子目录封存 · 实测 14 个 skin 都没自定义 skill 全靠 builtin · SkillUsageTracker 记账。",
+      tags: [{text:"Skills",color:"green"},{text:"SKILL.md",color:"blue"},{text:"动态加载",color:"pink"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_memory-system.html",
+      date: "2026-05-13",
+      title: "02 · Memory 系统（三段式 · 实测/设计/评价）",
+      desc: "Part I 线上实测（SSM 验证）· Part II 框架代码预计 · Part III 综合评价。包含 SVG orbit 全景图、文件活跃度热力图、4 端点 dashboard、五阶段阈值进度条、时序图、UML 类图、对比表 + verdict donut（2 吻合 / 2 偏差 / 6 dead code）+ 6 条教训建议。",
+      tags: [{text:"Memory",color:"pink"},{text:"三段式",color:"green"},{text:"多图",color:"blue"},{text:"agent infra",color:"orange"}]
+    },
+    {
+      file: "2026-05-13_agent-loop-core.html",
+      date: "2026-05-13",
+      title: "01 · Agent Loop 核心循环",
+      desc: "nanobot-ai PyPI 包 v0.1.5.post1 · 三层套娃：docker → auto-agent 业务 → nanobot 框架 · AgentLoop 持有 11 大组件 · iteration 循环 = LLM → tool_use → 工具并发 → checkpoint → 下轮 · 6 hooks 异常隔离（finalize_content 故意不隔离）· 12 默认工具 · NANOBOT_MAX_CONCURRENT_REQUESTS=8 信号量。",
+      tags: [{text:"Agent Loop",color:"orange"},{text:"nanobot",color:"blue"},{text:"循环",color:"green"},{text:"agent infra",color:"orange"}]
+    },
+
+    // ========== 早期总览文章 ==========
+    {
+      file: "2026-05-13_athena-architecture-deep.html",
+      date: "2026-05-13",
+      title: "Athena 架构深扒 · 高频内部 bot 总览",
+      desc: "Athena 是 TikTok 红人营销活动的 AI 经理。包含：一条消息走过的路（含 Hatchet durable task 保证不丢）· 难度路由 3 层（Sonnet vs Opus 决策）· Agent Loop 内部 + 工具集 + Skills · 7 步每日 Auto-Pilot（Step 3/4 需 IM platform 按钮确认）· 5 类存储分层 · Fleet 13 agents · 已知脆弱点 5 项。",
+      tags: [
+        { text: "Athena", color: "orange" },
+        { text: "总览", color: "pink" },
+        { text: "agent loop", color: "blue" },
+        { text: "Hatchet", color: "purple" }
+      ]
+    },
+    {
+      file: "2026-05-13_the-company-agent-architecture.html",
+      date: "2026-05-13",
+      title: "the company Agent 平台 · 功能模块图",
+      desc: "the company 把 AI 塞进 IM platform 群当团队成员。Athena 系列服务内部团队（多 bot 分身），Cetus 把同套能力做成 SaaS 卖给外部客户（多租户）。包含功能模块图 + 双容器协作（gateway × nanobot）+ Athena/Cetus 拓扑对照 + 一次对话流程 + 关键特性。",
+      tags: [
+        { text: "功能视角", color: "orange" },
+        { text: "模块图", color: "blue" },
+        { text: "agent", color: "green" },
+        { text: "the company", color: "purple" }
+      ]
+    }
+    // 加新条目时按时间倒序放在最上面
+  ];
+
+  // ============================================================
+  // 渲染 + 分类切换 + 搜索
+  // ============================================================
+  const grid = document.getElementById('grid');
+  const countEl = document.getElementById('count');
+  const searchEl = document.getElementById('search');
+  let activeCategory = 'all';
+
+  // 默认 category = "arch"（向后兼容旧条目）
+  function catOf(e) { return e.category || 'arch'; }
+
+  function render(list) {
+    if (list.length === 0) {
+      grid.innerHTML = '<div class="empty">没有匹配的可视化</div>';
+      return;
+    }
+    grid.innerHTML = list.map(e => {
+      const cat = catOf(e);
+      const catLabel = cat === 'interview' ? 'interview' : 'arch';
+      return `
+      <a class="card" href="${e.file}">
+        <span class="card-cat cat-${cat}">${catLabel}</span>
+        <div class="card-date">${e.date}</div>
+        <h2 class="card-title">${e.title}</h2>
+        <div class="card-desc">${e.desc}</div>
+        <div class="card-tags">
+          ${e.tags.map(t => `<span class="tag ${t.color}">${t.text}</span>`).join('')}
+        </div>
+      </a>`;
+    }).join('');
+  }
+
+  function applyFilter() {
+    const q = searchEl.value.trim().toLowerCase();
+    let filtered = entries;
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter(e => catOf(e) === activeCategory);
+    }
+    if (q) {
+      filtered = filtered.filter(e => {
+        const hay = (e.title + ' ' + e.desc + ' ' + e.tags.map(t => t.text).join(' ')).toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    render(filtered);
+    countEl.textContent = filtered.length;
+  }
+
+  function updateCounts() {
+    const counts = { all: entries.length, arch: 0, interview: 0 };
+    entries.forEach(e => { counts[catOf(e)] = (counts[catOf(e)] || 0) + 1; });
+    document.querySelectorAll('[data-count]').forEach(el => {
+      el.textContent = counts[el.dataset.count] || 0;
+    });
+  }
+
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeCategory = btn.dataset.cat;
+      applyFilter();
+    });
+  });
+
+  searchEl.addEventListener('input', applyFilter);
+  updateCounts();
+  applyFilter();
+</script>
+</body>
+</html>

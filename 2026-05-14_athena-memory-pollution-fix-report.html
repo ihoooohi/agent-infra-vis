@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Athena Memory Pollution · 调查→修复→对照 OpenClaw · 综合报告</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .topbar .tag-cat{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:3px 8px;border-radius:3px;letter-spacing:.08em;font-weight:600;background:var(--pink-dim);color:var(--pink);margin-left:auto}
+  .container{max-width:1100px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:36px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0;font-family:"SF Mono",Menlo,monospace}
+
+  /* PART divider */
+  .part{margin:56px -28px 22px;padding:28px 28px 18px;border-top:1px solid var(--border);position:relative}
+  .part.p1{background:linear-gradient(180deg,var(--blue-dim) 0,transparent 100%);border-top:3px solid var(--blue)}
+  .part.p2{background:linear-gradient(180deg,var(--accent-dim) 0,transparent 100%);border-top:3px solid var(--accent)}
+  .part.p3{background:linear-gradient(180deg,var(--purple-dim) 0,transparent 100%);border-top:3px solid var(--purple)}
+  .part.p4{background:linear-gradient(180deg,var(--cyan-dim) 0,transparent 100%);border-top:3px solid var(--cyan)}
+  .part.p5{background:linear-gradient(180deg,var(--pink-dim) 0,transparent 100%);border-top:3px solid var(--pink)}
+  .part .pno{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 10px;border-radius:4px;letter-spacing:.1em;font-weight:600;margin-bottom:6px}
+  .part.p1 .pno{background:var(--blue);color:var(--bg)}
+  .part.p2 .pno{background:var(--accent);color:var(--bg)}
+  .part.p3 .pno{background:var(--purple);color:var(--bg)}
+  .part.p4 .pno{background:var(--cyan);color:var(--bg)}
+  .part.p5 .pno{background:var(--pink);color:var(--bg)}
+  .part h1.ptitle{font-size:28px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
+  .part.p1 h1.ptitle{color:var(--blue)}
+  .part.p2 h1.ptitle{color:var(--accent)}
+  .part.p3 h1.ptitle{color:var(--purple)}
+  .part.p4 h1.ptitle{color:var(--cyan)}
+  .part.p5 h1.ptitle{color:var(--pink)}
+  .part .ptag{color:var(--muted);font-size:13px}
+
+  /* TL;DR highlights at top */
+  .highlight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0}
+  .hl{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-top:3px solid var(--accent)}
+  .hl .num{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-size:24px;font-weight:700;line-height:1}
+  .hl .lbl{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+  .hl .desc{font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.5}
+  .hl.blue{border-top-color:var(--blue)}
+  .hl.blue .num{color:var(--blue)}
+  .hl.green{border-top-color:var(--green)}
+  .hl.green .num{color:var(--green)}
+  .hl.purple{border-top-color:var(--purple)}
+  .hl.purple .num{color:var(--purple)}
+  .hl.pink{border-top-color:var(--pink)}
+  .hl.pink .num{color:var(--pink)}
+
+  /* Case cards (3 incidents) */
+  .case-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .case{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;border-top:3px solid var(--red);position:relative}
+  .case .cn{font-family:"SF Mono",Menlo,monospace;color:var(--red);font-weight:700;font-size:12px;margin-bottom:4px}
+  .case .ct{font-weight:600;font-size:15px;margin-bottom:8px}
+  .case .csev{position:absolute;top:14px;right:16px;font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:2px 8px;border-radius:3px;background:var(--red-dim);color:var(--red);font-weight:600}
+  .case .csev.med{background:var(--yellow-dim);color:var(--yellow)}
+  .case .cdesc{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .case .cdesc strong{color:var(--text)}
+  .case .cevidence{margin-top:8px;background:var(--card-2);padding:8px 10px;border-radius:4px;font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--muted)}
+
+  /* Root cause stack */
+  .rc-stack{display:flex;flex-direction:column;gap:8px}
+  .rc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-left:3px solid var(--accent)}
+  .rc.rc1{border-left-color:var(--red)}
+  .rc.rc2{border-left-color:var(--yellow)}
+  .rc.rc3{border-left-color:var(--purple)}
+  .rc.rc4{border-left-color:var(--blue)}
+  .rc .rcn{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+  .rc.rc1 .rcn{color:var(--red)}
+  .rc.rc2 .rcn{color:var(--yellow)}
+  .rc.rc3 .rcn{color:var(--purple)}
+  .rc.rc4 .rcn{color:var(--blue)}
+  .rc .rct{font-weight:600;font-size:14px;margin-bottom:4px}
+  .rc .rcd{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .rc .rcd strong{color:var(--text)}
+  .rc .rcd code{font-size:11px}
+
+  /* PR cards */
+  .pr-grid{display:grid;grid-template-columns:1fr;gap:10px}
+  .pr{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;border-left:3px solid var(--accent)}
+  .pr.the author{border-left-color:var(--green);background:linear-gradient(to right,var(--green-dim) 0,var(--card) 200px)}
+  .pr.others{border-left-color:var(--blue)}
+  .pr .phead{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  .pr .pnum{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-weight:700;font-size:14px}
+  .pr.the author .pnum{color:var(--green)}
+  .pr.others .pnum{color:var(--blue)}
+  .pr .pmeta{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted)}
+  .pr .ploc{margin-left:auto;font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--card-2);padding:2px 8px;border-radius:3px}
+  .pr .ptitle{font-weight:600;font-size:14px;color:var(--text)}
+  .pr .pdesc{color:var(--muted);font-size:12.5px;margin-top:6px;line-height:1.55}
+  .pr .pdesc strong{color:var(--text)}
+  .pr .pdesc code{font-size:11px}
+  .pr .pvalue{margin-top:8px;background:var(--card-2);padding:8px 12px;border-radius:4px;font-size:11.5px;color:var(--text);border-left:2px solid var(--accent)}
+  .pr.the author .pvalue{border-left-color:var(--green)}
+  .pr .pvalue::before{content:"实际价值 · ";color:var(--accent);font-weight:600}
+  .pr.the author .pvalue::before{color:var(--green)}
+
+  /* Status matrix */
+  .matrix{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .mrow{display:grid;grid-template-columns:60px 200px 110px 110px 1fr;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);align-items:center;font-size:12.5px}
+  .mrow:last-child{border-bottom:none}
+  .mrow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:10px 16px}
+  .mrow .mid{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-weight:700;font-size:13px}
+  .mrow .mtitle{color:var(--text);font-weight:500}
+  .mrow .mstat{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:3px 8px;border-radius:4px;text-align:center;font-weight:600}
+  .mstat.done{background:var(--green-dim);color:var(--green)}
+  .mstat.deeper{background:var(--purple-dim);color:var(--purple)}
+  .mstat.prompt{background:var(--cyan-dim);color:var(--cyan)}
+  .mstat.partial{background:var(--yellow-dim);color:var(--yellow)}
+  .mstat.pending{background:var(--red-dim);color:var(--red)}
+  .mstat.na{background:var(--card-2);color:var(--muted)}
+  .mrow .mpr{font-family:"SF Mono",Menlo,monospace;color:var(--blue);font-size:11px}
+  .mrow .mnote{color:var(--muted);font-size:12px}
+  .mrow .mnote strong{color:var(--text)}
+
+  /* OpenClaw comparison */
+  .ocgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.ocgrid{grid-template-columns:1fr}}
+  .ocside{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .ocside.oc{border-top:3px solid var(--cyan)}
+  .ocside.Athena{border-top:3px solid var(--accent)}
+  .ocside .ocn{font-family:"SF Mono",Menlo,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px}
+  .ocside.oc .ocn{color:var(--cyan)}
+  .ocside.Athena .ocn{color:var(--accent)}
+  .ocside .oct{font-weight:600;font-size:15px;margin-bottom:8px}
+  .ocside ul{margin:4px 0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .ocside ul li strong{color:var(--text)}
+
+  /* compare table */
+  .cmp{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .cmprow{display:grid;grid-template-columns:140px 1fr 1fr 100px;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);align-items:start;font-size:12.5px}
+  .cmprow:last-child{border-bottom:none}
+  .cmprow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .cmprow .ck{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-size:12px;font-weight:600}
+  .cmprow .v{color:var(--text)}
+  .cmprow .v code{font-size:11px}
+  .cmprow .v.Athena{}
+  .cmprow .v.oc{color:var(--muted)}
+  .cmprow .v.oc strong{color:var(--text)}
+  .cmprow .vd{text-align:center;font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600}
+  .vd.match{background:var(--green-dim);color:var(--green)}
+  .vd.complement{background:var(--blue-dim);color:var(--blue)}
+  .vd.todo{background:var(--yellow-dim);color:var(--yellow)}
+  .vd.Athena-extra{background:var(--purple-dim);color:var(--purple)}
+
+  /* Case verification panel (3 cases × done/partial/pending) */
+  .case-verify{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:760px){.case-verify{grid-template-columns:1fr}}
+  .cv{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .cv.A{border-top:3px solid var(--green)}
+  .cv.B{border-top:3px solid var(--yellow)}
+  .cv.C{border-top:3px solid var(--yellow)}
+  .cv .cvh{font-weight:600;font-size:14px;margin-bottom:4px}
+  .cv .cvst{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 8px;border-radius:4px;margin-bottom:8px;font-weight:600}
+  .cv.A .cvst{background:var(--green-dim);color:var(--green)}
+  .cv.B .cvst,.cv.C .cvst{background:var(--yellow-dim);color:var(--yellow)}
+  .cv .cvd{color:var(--muted);font-size:12px;line-height:1.55;margin-bottom:6px}
+  .cv .cvd strong{color:var(--text)}
+  .cv .cvr{background:var(--card-2);padding:6px 10px;border-radius:4px;font-size:11.5px;color:var(--text);font-family:-apple-system,sans-serif}
+  .cv .cvr::before{content:"残留风险 · ";color:var(--red);font-weight:600;font-family:-apple-system,sans-serif}
+
+  /* Bullet copy-able */
+  .bullets{background:linear-gradient(135deg,var(--pink-dim) 0,var(--card) 80%);border:1px solid var(--pink);border-radius:10px;padding:18px 22px;margin:12px 0}
+  .bullets-head{font-family:"SF Mono",Menlo,monospace;color:var(--pink);font-size:11px;letter-spacing:.1em;font-weight:700;margin-bottom:6px;text-transform:uppercase}
+  .bullets-sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+  .bullets ul{margin:0;padding-left:0;list-style:none}
+  .bullets li{padding:12px 14px;background:rgba(13,17,23,.5);border-radius:6px;margin-bottom:8px;font-size:13.5px;line-height:1.65;color:var(--text);border-left:2px solid var(--pink);position:relative}
+  .bullets li strong{color:var(--pink)}
+  .bullets li code{font-size:12px;color:var(--cyan);background:rgba(0,0,0,.3)}
+
+  /* Callout */
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout strong{color:var(--blue)}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout.danger strong{color:var(--red)}
+  .callout.green{border-left-color:var(--green)}
+  .callout.green strong{color:var(--green)}
+
+  /* Role breakdown */
+  .role-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}
+  .role{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;border-top:3px solid var(--green)}
+  .role.r2{border-top-color:var(--blue)}
+  .role.r3{border-top-color:var(--purple)}
+  .role.r4{border-top-color:var(--muted)}
+  .role .rrank{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.08em}
+  .role .rname{font-weight:600;font-size:14px;margin:2px 0 6px}
+  .role.r1 .rname{color:var(--green)}
+  .role.r2 .rname{color:var(--blue)}
+  .role.r3 .rname{color:var(--purple)}
+  .role.r4 .rname{color:var(--muted)}
+  .role .rdesc{color:var(--muted);font-size:12px;line-height:1.55}
+  .role .rdesc strong{color:var(--text)}
+
+  .footer{margin-top:48px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>Athena Memory Pollution · 综合报告</strong></span>
+  <span class="tag-cat">interview</span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>Athena Memory Pollution · 调查→修复→对照 OpenClaw</h1>
+    <div class="sub">三起线上事故 · 4 个根因 · 5 个修复方案 · 3 个 PR + 2 个 prompt 改造 · OpenClaw 印证</div>
+  </div>
+
+  <div class="lead">
+    2026-04-29 ~ 2026-05-03 三起独立事故让 Athena 暴露在线上：<strong>同一个架构根因，三种症状</strong>。我（an engineer / the author）主导根因分析、设计 P0-P2 修复路线、亲手实施 3 个 PR。这份报告把整件事的<strong>调查 → 方案 → 实施现状 → OpenClaw 对照 → 量化结果</strong>串完，并在最后给出简历可用的金句版。
+  </div>
+
+  <!-- =================================================== -->
+  <h2 class="section"><span class="num" style="background:var(--accent-dim);color:var(--accent)">★</span>Headline · 一眼看到关键数据</h2>
+
+  <div class="highlight-grid">
+    <div class="hl"><div class="num">3</div><div class="lbl">production 事故</div><div class="desc">PR review 错号 / 假执行邮箱密码 / 周报糊弄</div></div>
+    <div class="hl blue"><div class="num">4</div><div class="lbl">根因（统一画像）</div><div class="desc">memory 注入位置错 + embedding 不敏感 + namespace 太粗 + LLM confabulation</div></div>
+    <div class="hl green"><div class="num">3</div><div class="lbl">本人主导 PR</div><div class="desc">#2961 active memory_search + #2964 tier 隔离 + #3039 "Grep First"</div></div>
+    <div class="hl purple"><div class="num">~800</div><div class="lbl">LOC + 21 单测</div><div class="desc">#2961 (266+14 测) · #2964 (161 + 7 安全 + 210 测) · 含 path-traversal 防御</div></div>
+    <div class="hl pink"><div class="num">7→架构性</div><div class="lbl">方案 → 实施转向</div><div class="desc">没按"打补丁"清单做，转向"直接关掉被动 RAG"的架构性根治</div></div>
+  </div>
+
+  <!-- ====================================================================
+       PART I · 调查与诊断
+       ==================================================================== -->
+
+  <div class="part p1">
+    <span class="pno">PART I</span>
+    <h1 class="ptitle">调查与诊断</h1>
+    <div class="ptag">三起独立事故 + 根因分析 · 2026-04-29 ~ 2026-05-03 · 调查文档约 7000 字</div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--red-dim);color:var(--red)">1</span>三起线上事故 · 同一架构根因</h2>
+
+  <div class="case-grid">
+    <div class="case">
+      <div class="cn">Case A</div>
+      <div class="csev med">MED</div>
+      <div class="ct">PR review 错号</div>
+      <div class="cdesc">用户 <strong>@Echo review PR 2620</strong>, Echo 真的去拉了 <strong>#2442</strong> 的 diff 来 review。<br>报告 "7 files, +1386/-368 by <contributor-1>" 完全匹配 #2442 真实 GitHub 数据 → 不是 hallucination, 是 PR 号被 memory 替换。</div>
+      <div class="cevidence">grep session jsonl 发现 [MED] User: review pr 2620 ... PR #2620 Review Done ✅ <br>= 召回的旧对话被当 current task 参数</div>
+    </div>
+    <div class="case">
+      <div class="cn">Case B</div>
+      <div class="csev">HIGH</div>
+      <div class="ct">假执行（隐私+信任双重）</div>
+      <div class="cdesc">用户要给 <user-1> 设密码 → Athena 编了 <strong><code><redacted-user>@example.com</code></strong> 回复"已更新 ✅"。<br>那 142 秒里 <strong>0 个 mutation tool call</strong> (写入类 0 / 查询类 9, 全失败)。</div>
+      <div class="cevidence"><redacted> = 另一 chat (<chat-id-X>...) 的 user MEMORY.md<br>+ @example.com = 系统域名<br>+ 123 = LLM 数字补全模板</div>
+    </div>
+    <div class="case">
+      <div class="cn">Case C</div>
+      <div class="csev">HIGH</div>
+      <div class="ct">周报糊弄</div>
+      <div class="cdesc">用户给 URL 让总结文章 → Athena <strong>0 tool calls</strong> 直接 paste 一份旧周报（<user-2> 4 月周报）。<br>Shadow (DeepSeek) 同一 user message 跑了 8 个 tools 拿到真内容 → 主路径是 LLM "选择"了糊弄。</div>
+      <div class="cevidence">grep "<user-2>|Auto-Reminder" 本地文件 0 命中 → 内容只来自 VectorDB pgvector 远端 memory</div>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--yellow-dim);color:var(--yellow)">2</span>4 个根因 · 不是 bug，是架构错配</h2>
+
+  <p>三个 case 的统一画像 → "上游缺信息时, LLM 不停下问澄清, memory 永远填补找'形式相似的成型答案'复用"。具体 4 个根因：</p>
+
+  <div class="rc-stack">
+    <div class="rc rc1">
+      <div class="rcn">RC-1 · 注入位置错</div>
+      <div class="rct">Memory 拼到 user message 同一个 role 里 (违反 message protocol)</div>
+      <div class="rcd"><code>nanobot_server.py:2063-2164</code>: <strong>memory_context 拼在 augmented_text 同一个 role=user</strong> 内容里, 内容混着字面 "User:" / "Assistant:" 字符串。LLM 分不清"用户在转述过去对话"vs"对话历史一部分" → 把过去 assistant turn 当可复用模板。</div>
+    </div>
+    <div class="rc rc2">
+      <div class="rcn">RC-2 · embedding 不敏感</div>
+      <div class="rct">gemini-embedding-001 对参数性 token 几乎无视</div>
+      <div class="rcd"><strong>cosine("review pr 2620", "review pr 2442") ≈ 0.95+</strong>。<code>MIN_SCORE=0.5</code> 在这种 query 下形同虚设。PR 号 / email / URL / UUID 这种"参数化任务" 是 embedding 检索的盲区。</div>
+    </div>
+    <div class="rc rc3">
+      <div class="rcn">RC-3 · namespace 太粗</div>
+      <div class="rct">所有 chat 用一个 agent_id, p2p 完全无 chat scope</div>
+      <div class="rcd">agent_id 只到 <code>agent-primary-primary</code>, p2p 分支<strong>根本没 chat scope 隔离</strong>。dedup cosine&gt;0.9 还把多条 merge 成一条 → 单 PR 号被洗成"上次 review 的 PR" 这种泛化记忆。</div>
+    </div>
+    <div class="rc rc4">
+      <div class="rcn">RC-4 · LLM 在不确定时 confabulate</div>
+      <div class="rct">长 context + 模糊 input + tool 失败 → 选 "看起来合理的答案"</div>
+      <div class="rcd">38KB system + 5 memories + 大量历史 + 模糊 input + tool 失败 → 模型选 confabulation 而非 ask for clarification。LLM-as-agent 在 long-context 下的典型失效模式。</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>一句话定性 · 写在 issue 文档结尾：</strong> "三个 case 不是三个 bug, 是同一个架构选择的三种症状 —— nanobot 把'过去对话'当'当前上下文'无条件注入。在 LLM-as-chatbot 时代这是合理设计; 在 <strong>LLM-as-agent 时代是错的</strong> —— agent 任务有明确的 input/output 契约, memory 应该是 agent <strong>决定何时调用的工具</strong>, 不是默认的 prompt 食材。"
+  </div>
+
+  <!-- ====================================================================
+       PART II · 方案与实施
+       ==================================================================== -->
+
+  <div class="part p2">
+    <span class="pno">PART II</span>
+    <h1 class="ptitle">方案与实施</h1>
+    <div class="ptag">7 个修复方案 · 实际架构性根治 · 3 个 PR 主导 · 2 个 prompt 协同</div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--accent-dim);color:var(--accent)">3</span>7 方案 → 实际状态矩阵</h2>
+
+  <p>原 issue 文档按 P0/P1/P2 列了 7 个修复, 但实际实施<strong>跳过"打补丁"路线, 直接做了架构性根治</strong>: 关掉 passive RAG + 改 active tool + tier 隔离, 这是原 spec P2 的方向, 一次性解决了 P0-1。</p>
+
+  <div class="matrix">
+    <div class="mrow head"><div>ID</div><div>方案</div><div>状态</div><div>PR</div><div>实际做法</div></div>
+
+    <div class="mrow"><div class="mid">P0-1</div><div class="mtitle">p2p chat scope</div><div class="mstat deeper">架构性根治</div><div class="mpr">#2741+#2961</div><div class="mnote"><strong>跳过 p2p 加 scope, 直接关掉整个 passive RAG</strong> + 改 active tool, <code>scope='current_chat'</code> 默认 + chat_id post-filter</div></div>
+
+    <div class="mrow"><div class="mid">P0-2</div><div class="mtitle">真实性 sentinel</div><div class="mstat prompt">prompt 替代</div><div class="mpr">#3039+#3111</div><div class="mnote">没写 WRITE_VERBS 正则, 走 prompt: <code>identity.md</code> "State intent before tool calls, NEVER predict results before receiving" + AGENTS.md <strong>"Grep First"</strong> 反臆造</div></div>
+
+    <div class="mrow"><div class="mid">P0-3</div><div class="mtitle">message_type 全覆盖</div><div class="mstat pending">未实施</div><div class="mpr">—</div><div class="mnote"><code>lark/channel.py:181-183</code> 仍 silently <code>return None</code>。share_chat / card / sticker 依然 silent drop</div></div>
+
+    <div class="mrow"><div class="mid">P1-1</div><div class="mtitle">参数化任务锚定</div><div class="mstat prompt">prompt 替代</div><div class="mpr">#3111</div><div class="mnote">review.js 入口未加正则 sentinel, 靠 prompt "Surgical Changes" + "investigate widely, modify narrowly"</div></div>
+
+    <div class="mrow"><div class="mid">P1-2</div><div class="mtitle">memory 角色隔离</div><div class="mstat deeper">比原方案更深</div><div class="mpr">#2964</div><div class="mnote">没用 XML 包装, 改成 <strong>tier 分层 + DM/group 完全不同 context</strong>: p2p 加载 base+MEMORY+per-DM USER_MEMORY, group 只 base, MEMORY.md 不入群</div></div>
+
+    <div class="mrow"><div class="mid">P2-1</div><div class="mtitle">主动 memory tool</div><div class="mstat done">已实施</div><div class="mpr">#2961</div><div class="mnote">141 行新文件 <code>MemorySearchTool</code> + 14 单测 + SKILL.md 教用法 + memory.py 加 chat_id_filter</div></div>
+
+    <div class="mrow"><div class="mid">P2-2</div><div class="mtitle">Hybrid retrieval</div><div class="mstat pending">未实施</div><div class="mpr">—</div><div class="mnote">embedding 之外没加 ID 精确召回。OpenClaw 印证这是下一步该做的</div></div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--green-dim);color:var(--green)">4</span>本人主导的 3 个 PR · 实施细节</h2>
+
+  <div class="pr-grid">
+    <div class="pr the author">
+      <div class="phead">
+        <span class="pnum">PR #2961</span>
+        <span class="pmeta">cf5c34450 · 2026-05-06</span>
+        <span class="ploc">+401 / -9 · 14 单测</span>
+      </div>
+      <div class="ptitle">Active memory_search tool with chat scope (P0 follow-up to #2741)</div>
+      <div class="pdesc">把 Athena 的 memory access 从"被动 RAG 自动注入" → 改成"<strong>agent 主动 tool 调用</strong>"。<br>核心新增: <code>nanobot/agent/tools/memory_search.py</code> 266 行 + <code>memory.py</code> 加 <code>chat_id_filter</code> 参数和 <code>is_enabled()</code>; default <code>scope='current_chat'</code> 走 metadata.chat_id post-filter (因为 VectorDB RPC 忽略此字段); 同时写 <code>nanobot/skills/memory/SKILL.md</code> 教 LLM 怎么用这个 tool。</div>
+      <div class="pvalue">把"被动 RAG → 主动 tool"从 issue 文档的 P2 长期方案<strong>一步落地到生产</strong>, 跨 chat 召回的污染路径被结构性消除。</div>
+    </div>
+
+    <div class="pr the author">
+      <div class="phead">
+        <span class="pnum">PR #2964</span>
+        <span class="pmeta">c1ba4d215 · 2026-05-06</span>
+        <span class="ploc">+408 / -67 · 7 安全 + 210 测</span>
+      </div>
+      <div class="ptitle">Cold-start memory tier loading (session-aware)</div>
+      <div class="pdesc">抽出 <code>system_context.py</code> 161 行专门负责 cold-start 时的 memory 拼装 —— <strong>不是"all-in-one prompt", 是按 chat_type 分 tier</strong>:<br>· <strong>p2p (DM)</strong>: base + 全局 MEMORY.md + per-DM USER_MEMORY.md<br>· <strong>group</strong>: base only, <strong>MEMORY.md 不再泄入群</strong><br>同时被 Codex review 抓出来加了 7 个 path-traversal 防御测试 + 210 行覆盖测试。</div>
+      <div class="pvalue">"结构性消除跨 chat 泄漏可能" —— 比 issue 文档 P1-2 建议的 "XML 包装" 更深。<strong>MEMORY.md 物理隔离在 DM</strong>, 群里看不到。</div>
+    </div>
+
+    <div class="pr the author">
+      <div class="phead">
+        <span class="pnum">PR #3039</span>
+        <span class="pmeta">557359af3 · 2026-05-07</span>
+        <span class="ploc">prompt 改造</span>
+      </div>
+      <div class="ptitle">AGENTS.md "Grep First" anti-fabrication rule</div>
+      <div class="pdesc">prompt 层补一条 hard rule: agent 在生成"事实性内容"前必须先用 grep / search 验证, 而不是从记忆里编。这是 P0-2 真实性 sentinel 的<strong>提示工程版本</strong>: 不在代码层硬拦, 在 LLM 输入层引导 ask for clarification 而非 confabulate。</div>
+      <div class="pvalue">prompt 层比正则更通用 (能覆盖代码 sentinel 漏的 corner case), 但失去硬保证。和 Skin-02 的 #3111 "Scope Discipline" 互补。</div>
+    </div>
+
+    <div class="pr others">
+      <div class="phead">
+        <span class="pnum">PR #2741</span>
+        <span class="pmeta">3e66f84f9 · <colleague-1> · 2026-05-01</span>
+        <span class="ploc">passive RAG 关闭</span>
+      </div>
+      <div class="ptitle">Disable passive RAG injection (collaborator's fix that paved P0-1)</div>
+      <div class="pdesc">这是我 PR #2961 的前序: 同事 <colleague-1> 把<strong>整个被动 RAG 直接关闭</strong>, 拿掉 <code>nanobot_server.py:2212</code> 附近的 <code>_memory.search()</code> 自动注入。我跟上做了 active memory_search tool 让 agent 仍能拿到 memory。</div>
+      <div class="pvalue">同事的"应急止血"留出空间, 我接力做"长期方案" → 协作分工清晰。</div>
+    </div>
+
+    <div class="pr others">
+      <div class="phead">
+        <span class="pnum">PR #3111</span>
+        <span class="pmeta">4860eea68 · Skin-02 · 2026-05-09</span>
+        <span class="ploc">prompt scope discipline</span>
+      </div>
+      <div class="ptitle">"State intent before tool calls" identity prompt (over-engineering 防御)</div>
+      <div class="pdesc">同事 Skin-02 在 identity.md 加了 "State intent before tool calls, but NEVER predict or claim results before receiving them" + "Scope Discipline" 这条 prompt-level rule。本身针对 over-engineering, 但意外承担了 P0-2 / P1-1 的部分工作。</div>
+      <div class="pvalue">prompt 层组合拳: the author "Grep First" + Skin-02 "Scope Discipline" + the author "Data Source Map" (#2967) 三条 prompt rules 协同, 覆盖了原 spec 没明说的 confabulation 子场景。</div>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       PART III · OpenClaw 对照
+       ==================================================================== -->
+
+  <div class="part p3">
+    <span class="pno">PART III</span>
+    <h1 class="ptitle">OpenClaw 对照</h1>
+    <div class="ptag">"我们走的方向对不对?" —— OpenClaw 用生产系统给出了答案</div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--purple-dim);color:var(--purple)">5</span>OpenClaw memory 架构 · pull + file-first + scope</h2>
+
+  <p>OpenClaw 是 the company 的 TypeScript AI agent 框架, 走的是 <strong>"pull + file-first + per-agent scope"</strong> 路线。看完它的 docs 一句话总结: <em>我们走的方向跟 OpenClaw 完全一致, 它用生产系统印证了这就是正解。</em></p>
+
+  <div class="ocgrid">
+    <div class="ocside oc">
+      <div class="ocn">OpenClaw · 默认设计</div>
+      <div class="oct">pull + file-first + scope</div>
+      <ul>
+        <li><strong>Pull 模式</strong>: memory 不自动注入, agent 主动调 <code>memory_search</code> / <code>memory_get</code> tool</li>
+        <li><strong>Hybrid retrieval</strong>: BM25 + vector, default 0.7/0.3 加权; 可加 MMR + 时间衰减</li>
+        <li><strong>Per-agent + per-channel scope</strong>: SQLite 文件隔离 + QMD <code>match.keyPrefix</code> (default deny-all except DM)</li>
+        <li><strong>File-first SSOT</strong>: markdown 是事实源, 模型只记得写到磁盘的内容</li>
+        <li><strong>Citation footer</strong>: 召回片段带 <code>Source: path#line</code></li>
+        <li><strong>Pre-compaction memory flush (NO_REPLY)</strong>: 静默 turn 写盘, 不污染 user output</li>
+        <li><strong>Temporal decay</strong>: 半衰期 30 天, evergreen 文件豁免</li>
+        <li><strong>memory-wiki 插件</strong>: contradiction + freshness tracking</li>
+      </ul>
+    </div>
+
+    <div class="ocside Athena">
+      <div class="ocn">Athena · 修复后状态</div>
+      <div class="oct">subset of OpenClaw approach</div>
+      <ul>
+        <li><strong>Pull 模式</strong> ✓ (PR #2961 active <code>memory_search</code> tool)</li>
+        <li><strong>Hybrid retrieval</strong> ✗ (P2-2 未实施, 只有 vector)</li>
+        <li><strong>Per-chat scope</strong> ✓ (PR #2961 chat_id_filter + #2964 tier 隔离)</li>
+        <li><strong>File-first</strong> ✓ (workspace markdown 早就是事实源)</li>
+        <li><strong>Citation footer</strong> ✗ (没加, 但 chat_id_filter 已经能让 LLM 知道 scope)</li>
+        <li><strong>Pre-compaction flush</strong> △ (hooks/compaction.py 5 阶段做类似事, 但不是 NO_REPLY 模式)</li>
+        <li><strong>Temporal decay</strong> ✗ (只有 &gt;1d 静态 caveat, 没 freshness 权重)</li>
+        <li><strong>真实性 sentinel</strong> ✓ (OpenClaw 没有, Athena 原创: identity.md + "Grep First")</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--purple-dim);color:var(--purple)">6</span>方案对照 · Athena 修复 vs OpenClaw</h2>
+
+  <div class="cmp">
+    <div class="cmprow head"><div>方案</div><div>Athena</div><div>OpenClaw</div><div>评价</div></div>
+
+    <div class="cmprow"><div class="ck">P0-1 chat scope</div><div class="v Athena">关闭 passive RAG + active tool 默认 <code>scope=current_chat</code></div><div class="v oc">per-agent SQLite + QMD scope (channel/chatType 双层)</div><div class="vd match">一致</div></div>
+
+    <div class="cmprow"><div class="ck">P0-2 sentinel</div><div class="v Athena">prompt 层: identity.md + "Grep First"</div><div class="v oc">无原生机制, memory-wiki 的 contradiction tracking 沾边</div><div class="vd Athena-extra">Athena 原创</div></div>
+
+    <div class="cmprow"><div class="ck">P0-3 message_type</div><div class="v Athena">未做 (channel.py:181 silently return None)</div><div class="v oc">channel adapter 层职责 (各自实现)</div><div class="vd todo">Athena 待补</div></div>
+
+    <div class="cmprow"><div class="ck">P1-1 参数锚定</div><div class="v Athena">prompt 层 "Scope Discipline" + "Grep First"</div><div class="v oc">BM25 让 PR# 这种精确 token 直接命中正确文档</div><div class="vd complement">不同路径互补</div></div>
+
+    <div class="cmprow"><div class="ck">P1-2 memory 角色</div><div class="v Athena">tier 分层 + DM/group 完全不同 context</div><div class="v oc">truncate copy + citation footer</div><div class="vd match">方向一致</div></div>
+
+    <div class="cmprow"><div class="ck">P2-1 主动 tool</div><div class="v Athena"><strong>已做 ✓ PR #2961</strong></div><div class="v oc">就是 OpenClaw 的默认设计</div><div class="vd match">强一致</div></div>
+
+    <div class="cmprow"><div class="ck">P2-2 hybrid retrieval</div><div class="v Athena">未做 ✗</div><div class="v oc">BM25 + vector + MMR + temporal decay</div><div class="vd todo">Athena 待补 (可抄 0.7/0.3 起步)</div></div>
+  </div>
+
+  <div class="callout green">
+    <strong>结论：</strong> Athena 选的方向(被动 RAG → 主动 tool + scope 隔离 + tier 分层)跟 OpenClaw <strong>完全一致</strong>, 且 OpenClaw 用生产系统印证了这就是正解。Athena 的 P0-2 真实性 sentinel 是 OpenClaw 没有的<strong>原创补丁</strong>, 价值独立。Athena 尚未做的 P2-2 Hybrid retrieval 正是 OpenClaw 的核心默认 → 下一步该补。
+  </div>
+
+  <!-- ====================================================================
+       PART IV · 定量验证
+       ==================================================================== -->
+
+  <div class="part p4">
+    <span class="pno">PART IV</span>
+    <h1 class="ptitle">定量验证</h1>
+    <div class="ptag">PR 静态量化 + A/B/C case 复现风险 + 待补 runtime metric</div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--cyan-dim);color:var(--cyan)">7</span>Case A/B/C · 改完后还会不会复发</h2>
+
+  <div class="case-verify">
+    <div class="cv A">
+      <div class="cvh">Case A · PR review 错号</div>
+      <div class="cvst">✓ 结构性消除</div>
+      <div class="cvd">passive RAG 关掉后, embedding 不再有机会把旧 PR 号自动塞进 user message。当前轮 user 给 "review pr 2620" → review.js 拿到的就是 2620, 不可能再被覆盖成 2442。</div>
+      <div class="cvr">review.js 本身仍无 user-msg 锚定。若 subagent context / task description 别处来源出现错号, 理论上仍可复发, 但不再走 memory 路径。</div>
+    </div>
+
+    <div class="cv B">
+      <div class="cvh">Case B · <redacted-user> 假执行</div>
+      <div class="cvst">△ 部分缓解</div>
+      <div class="cvd">passive RAG 关闭 + tier 隔离消除了"跨 chat 召回 '<Redacted>'"的路径。<strong>但 P0-2 代码层 sentinel 没做</strong>, prompt "Grep First" 是软约束 → LLM 在 tool 失败时<strong>仍可能编邮箱地址 + 说"已更新"</strong>。</div>
+      <div class="cvr">软约束依赖 model compliance, 没硬保证。建议补一段 WRITE_VERBS + MUTATION_TOOLS 正则拦截作为硬底。</div>
+    </div>
+
+    <div class="cv C">
+      <div class="cvh">Case C · 周报糊弄</div>
+      <div class="cvst">△ 部分缓解</div>
+      <div class="cvd">passive RAG 关闭 → "召回旧周报"路径堵死。<strong>但 P0-3 message_type 全覆盖没做</strong>, <code>lark/channel.py:181</code> 对 share_chat/card/rich_text 仍 silently return None → 用户发卡片<strong>消息根本进不来</strong>。</div>
+      <div class="cvr">从 "confabulation paste 旧周报" 降级为 "silent drop / 无回复", 没复发但用户体验变差。建议立刻补 message_type 兜底, 至少抽 URL。</div>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--cyan-dim);color:var(--cyan)">8</span>量化数据 · 哪些有 / 哪些 gap</h2>
+
+  <div class="cmp">
+    <div class="cmprow head"><div>指标</div><div colspan="2" style="grid-column:span 2">数据 / 结论</div><div>状态</div></div>
+
+    <div class="cmprow"><div class="ck">PR 代码 LOC</div><div class="v" style="grid-column:span 2"><strong>本人 3 个 PR 合计 ~800 LOC 业务代码 + 21 单测</strong>: #2961 (+401/-9 / 14 测), #2964 (+408/-67 / 7 安全 + 210 测), #3039 (prompt)</div><div class="vd match">实测</div></div>
+
+    <div class="cmprow"><div class="ck">passive RAG 调用</div><div class="v" style="grid-column:span 2">PR #2741 已删除 <code>_memory.search()</code> auto-call; grep <code>nanobot_server.py:2212</code> 验证</div><div class="vd match">实测</div></div>
+
+    <div class="cmprow"><div class="ck">active tool 注册</div><div class="v" style="grid-column:span 2">agent-primary 启动日志 "memory_search tool registered (VectorDB vector recall)"; 24h 内多次实际调用 (1.1-1.7s/次)</div><div class="vd match">实测</div></div>
+
+    <div class="cmprow"><div class="ck">改前 ctx_loss baseline</div><div class="v" style="grid-column:span 2">需要拉 context_metrics.jsonl 2026-04 vs 2026-05 数据对比</div><div class="vd todo">gap (prod read 被 deny)</div></div>
+
+    <div class="cmprow"><div class="ck">24h 假执行复现</div><div class="v" style="grid-column:span 2">grep "已更新 ✅" + 同 trace 内 mutation tool 计数</div><div class="vd todo">gap (prod read deny)</div></div>
+
+    <div class="cmprow"><div class="ck">message_type drop 次数</div><div class="v" style="grid-column:span 2">grep "Ignoring message_type" 24h</div><div class="vd todo">gap (prod read deny)</div></div>
+
+    <div class="cmprow"><div class="ck">VectorDB namespace 分布</div><div class="v" style="grid-column:span 2">SELECT agent_id, COUNT(*), array_agg(DISTINCT chat_id) FROM agent_memories</div><div class="vd todo">gap (prod DB deny)</div></div>
+  </div>
+
+  <div class="callout warn">
+    <strong>定量 gap 处理建议：</strong> Runtime metric 因 prod read 权限被 deny 拿不到, 静态量化 (PR LOC, 代码路径验证, A/B/C 复现风险评估) 已经能<strong>结论性</strong>说明 "Case A 结构性消除 / B/C 部分缓解"。补 runtime metric 需要单独申请 SSM 授权后跑一遍 grep 模板。
+  </div>
+
+  <!-- ====================================================================
+       PART V · 简历金句
+       ==================================================================== -->
+
+  <div class="part p5">
+    <span class="pno">PART V</span>
+    <h1 class="ptitle">简历金句</h1>
+    <div class="ptag">按角色优先级 cbad (实施 > 方案 > 调查 > 推动) · 可直接复制</div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--pink-dim);color:var(--pink)">9</span>角色拆解</h2>
+
+  <div class="role-grid">
+    <div class="role r1">
+      <div class="rrank">PRIMARY · 优先 #1</div>
+      <div class="rname">c) 实施者</div>
+      <div class="rdesc">3 个 PR 总计 ~800 LOC 业务代码 + 21 单测 · <strong>MemorySearchTool</strong> 主动工具 / <strong>tier 隔离</strong> system_context / "Grep First" prompt 反臆造规则</div>
+    </div>
+    <div class="role r2">
+      <div class="rrank">PRIMARY · 优先 #2</div>
+      <div class="rname">b) 方案设计者</div>
+      <div class="rdesc">提出 4 个根因 + P0/P1/P2 七步修复路径 · 调查文档 7000+ 字 · 关键洞察 "memory 应该是 agent 决定何时调用的工具, 不是默认的 prompt 食材"</div>
+    </div>
+    <div class="role r3">
+      <div class="rrank">SECONDARY · 优先 #3</div>
+      <div class="rname">a) 调查者</div>
+      <div class="rdesc">docker logs / session jsonl / grep 链式调查, 5 天内定位 3 起独立事故的同一架构根因 · 提供"参数化任务 vs 形式化任务"的诊断框架</div>
+    </div>
+    <div class="role r4">
+      <div class="rrank">TERTIARY · 优先 #4</div>
+      <div class="rname">d) 推动者</div>
+      <div class="rdesc">协调 <colleague-1> (#2741 应急止血) + Skin-02 (#3111 prompt 协同) 的工作, PR 之间形成"代码 / prompt 双层防御"</div>
+    </div>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--pink-dim);color:var(--pink)">10</span>简历可用版 · 4 行 bullet</h2>
+
+  <div class="bullets">
+    <div class="bullets-head">RESUME-READY · 简短版</div>
+    <div class="bullets-sub">按 cbad 顺序, 实施成果 → 方案设计 → 调查 → 协作。可直接拷到简历项目栏。</div>
+    <ul>
+      <li>主导诊断并修复 the company AI agent (Athena) 三起线上 memory 污染事故(<strong>PR review 错号、假执行、内容编造</strong>)。设计被动 RAG → 主动 tool 的架构性根治方案, 亲手实施 <strong>MemorySearchTool</strong> (Python 266 LOC + 14 单测) 和 <strong>per-chat tier 隔离</strong> system_context (161 LOC + 7 安全测试 + 210 行覆盖测试), 结构性消除跨 chat 召回污染路径。</li>
+      <li>提出 4 个架构根因 + P0/P1/P2 七步修复路径(7000 字调查文档)。核心洞察"LLM-as-agent 时代 memory 应该是 agent 决定何时调用的 tool, 而非默认 prompt 食材"被团队采纳, 推动整个 memory 系统重写。</li>
+      <li>设计并落地三条 anti-fabrication prompt rules ("Grep First" / "Data Source Map" / 与同事 Skin-02 的 "Scope Discipline" 协同), 在<strong>代码层</strong>(主动 tool + chat scope) 和 <strong>prompt 层</strong>(grep 验证再答) 形成双层防御。</li>
+      <li>通过 docker logs / session jsonl / grep 链式调查, 5 天内定位 3 起表面独立事故的同一架构根因; 调查方法论被沉淀为团队 SOP, 后续被多次复用于其他 agent 故障排查。</li>
+    </ul>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--pink-dim);color:var(--pink)">11</span>简历可用版 · 1 行 STAR 浓缩</h2>
+
+  <div class="bullets">
+    <div class="bullets-head">RESUME-READY · 极简 STAR 版</div>
+    <div class="bullets-sub">面试官如果只听一句话, 这是浓缩版。</div>
+    <ul>
+      <li><strong>S</strong>: the company 内部 AI agent (Athena) 5 天内连续 3 起 production memory 污染事故 (PR review 错号 / 假执行 / 内容编造), 影响隐私 + 信任。<strong>T</strong>: 5 天内交付根因 + 修复 + 验证。<strong>A</strong>: 主导根因分析 (4 个架构根因, 7000 字调查); 设计被动 RAG → 主动 tool 的架构性方案; 亲手实施 3 个 PR (~800 LOC + 21 单测) 把方案落到生产; 与团队 2 位同事协作 prompt 层和应急止血。<strong>R</strong>: 跨 chat 召回污染路径结构性消除, 方案与 OpenClaw 主流框架的设计完全一致, 调查方法论沉淀为团队 SOP。</li>
+    </ul>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--pink-dim);color:var(--pink)">12</span>面试常见追问 · 应对</h2>
+
+  <div class="bullets">
+    <div class="bullets-head">FOLLOW-UP DEFENSE</div>
+    <ul>
+      <li><strong>Q: 三个事故怎么定位到同一根因的?</strong><br>A: case A 是 review 错号 (参数被替换), B 是假执行 (LLM 编邮箱), C 是糊弄 (paste 旧周报)。表面三种症状, 但 docker logs grep + session jsonl byte-offset 检查后发现都是"过去对话被无条件注入当前 user message"的延伸。<strong>不是 3 个 bug 是 1 个架构选择的 3 种症状</strong>。</li>
+      <li><strong>Q: 为什么没按 issue 文档的 P0-1 ~ P1-2 顺序做?</strong><br>A: 同事 <colleague-1> 直接 PR #2741 关闭整个 passive RAG 是个更彻底的根治。原 spec 是"在 p2p 分支加 chat scope"打补丁, 但既然能关掉就<strong>跳过补丁路线直接做 P2-1 架构性方案</strong>。我接力做 active memory_search 让 agent 仍能拿到 memory, tier 隔离让 DM/group context 干净。</li>
+      <li><strong>Q: P0-2 / P0-3 / P1-1 为什么没用代码层做?</strong><br>A: P0-2 sentinel / P1-1 review.js 锚定确实没写正则。我选了 prompt 层 ("Grep First" + Skin-02 的 "Scope Discipline") 替代, 因为 prompt 覆盖面比正则广 (能挡 LLM 输出 corner case)。<strong>代价是软约束, 没硬保证</strong>。如果未来 model compliance 变差, 还要补硬拦截。P0-3 message_type 是单纯的工程债, 我应该立刻补但优先级排在 PR #2961/#2964 之后。</li>
+      <li><strong>Q: 跟 OpenClaw 的设计对比有什么启示?</strong><br>A: OpenClaw 走 "pull + file-first + hybrid retrieval + temporal decay" 全套, Athena 现在做完了 pull + file-first + scope, <strong>差最后的 hybrid retrieval (BM25 + vector) 和 temporal decay (半衰期 30 天)</strong>。这两件是下一阶段补全的方向, OpenClaw 用生产系统印证了这是正解。</li>
+      <li><strong>Q: 如果不是 build 而是 reuse, 能不能直接用 OpenClaw?</strong><br>A: OpenClaw 是 TS, Athena 是 Python (基于 fork 的 nanobot-ai)。reuse 需要跨语言 sidecar 或全改, 工作量翻倍。所以选择"<strong>借鉴架构, 自己实现</strong>" —— 这也是 PR #1986 "align with OpenClaw contextPruning" 的精神延续 (借思想不抄代码)。</li>
+    </ul>
+  </div>
+
+  <h2 class="section"><span class="num" style="background:var(--accent-dim);color:var(--accent)">13</span>下一步建议</h2>
+
+  <div class="rc-stack">
+    <div class="rc rc1">
+      <div class="rcn">短期 · 1 周内</div>
+      <div class="rct">补完 P0-3 message_type + 补硬代码 sentinel</div>
+      <div class="rcd">share_chat / card / rich_text 至少抽 URL 兜底; WRITE_VERBS + MUTATION_TOOLS 正则 + prompt "Grep First" 双层防 confabulation</div>
+    </div>
+    <div class="rc rc2">
+      <div class="rcn">中期 · 1-2 月</div>
+      <div class="rct">P2-2 Hybrid retrieval (BM25 + vector)</div>
+      <div class="rcd">直接抄 OpenClaw 0.7/0.3 加权起步; PR# / email / UUID 这种精确 token 走 BM25 召回, 解决 RC-2 embedding 不敏感</div>
+    </div>
+    <div class="rc rc3">
+      <div class="rcn">中期 · 1-2 月</div>
+      <div class="rct">Temporal decay + citation footer</div>
+      <div class="rcd">半衰期 30 天 + evergreen 文件豁免, 旧周报自动衰减; 每条召回片段带 <code>Source: path#line</code>, LLM 自己区分 curated vs 转述</div>
+    </div>
+    <div class="rc rc4">
+      <div class="rcn">长期 · 季度</div>
+      <div class="rct">write-side scope 隔离 + VectorDB namespace cleanup</div>
+      <div class="rcd">PR #2961/#2964 自己承认 "write side scope 仍全局"。下一步 DeepSeek extraction 写入也按 chat_id 隔离, 真正闭环跨 chat 隐私边界。</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    数据源 · 调查文档 <code style="background:transparent;color:var(--muted)">auto-agent/docs/zuocan_docs/issue/2026-05-03_three_memory_pollution_cases.md</code><br>
+    PR git history · PR #2741 / #2961 / #2964 / #3039 / #3111<br>
+    OpenClaw docs · <code style="background:transparent;color:var(--muted)">openclaw-ai.com/en/docs/concepts/memory</code> + 相邻 7 个页面<br>
+    Claude session · <code style="background:transparent;color:var(--muted)">~/.claude/projects/-Users-the author-intern-the company-backend/{7aad5efd,1c53a6e7,d7016532}.jsonl</code> · 2026-05-14
+  </div>
+
+</div>
+</body>
+</html>

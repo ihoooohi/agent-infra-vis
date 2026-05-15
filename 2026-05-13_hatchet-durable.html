@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hatchet Durable Task · 60 分钟 agent 跑不丢的秘密</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  /* Compare boxes */
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+  @media(max-width:720px){.compare{grid-template-columns:1fr}}
+  .cside{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px}
+  .cside.bad{border-top:3px solid var(--red)}
+  .cside.good{border-top:3px solid var(--green)}
+  .cside .ctitle{font-weight:600;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .cside.bad .ctitle{color:var(--red)}
+  .cside.good .ctitle{color:var(--green)}
+  .cside .csub{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .cside pre{margin:0;font-size:11.5px}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+  pre .ann{color:var(--purple)}
+
+  /* Timeline */
+  .timeline{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;position:relative}
+  .tstep{display:grid;grid-template-columns:90px 32px 1fr;gap:12px;padding:10px 0;align-items:start;border-bottom:1px solid var(--border)}
+  .tstep:last-child{border-bottom:none}
+  .tstep .time{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--muted)}
+  .tstep .dot{width:10px;height:10px;background:var(--accent);border-radius:50%;margin-top:6px;justify-self:center;box-shadow:0 0 0 3px var(--accent-dim)}
+  .tstep.crash .dot{background:var(--red)}
+  .tstep.restart .dot{background:var(--green)}
+  .tstep.human .dot{background:var(--yellow)}
+  .tstep .body strong{color:var(--text);font-size:13.5px}
+  .tstep .body .h{color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* Action grid */
+  .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+  .action{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;border-left:3px solid var(--accent)}
+  .action.confirm{border-left-color:var(--green)}
+  .action.reject{border-left-color:var(--yellow)}
+  .action.cancel{border-left-color:var(--red)}
+  .action.skip{border-left-color:var(--muted)}
+  .action .an{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:13px;margin-bottom:4px}
+  .action.confirm .an{color:var(--green)}
+  .action.reject .an{color:var(--yellow)}
+  .action.cancel .an{color:var(--red)}
+  .action.skip .an{color:var(--muted)}
+  .action .ad{color:var(--muted);font-size:12px;line-height:1.5}
+
+  /* Dual cache box */
+  .dual-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .dual-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:stretch;margin-top:12px}
+  @media(max-width:720px){.dual-grid{grid-template-columns:1fr;gap:8px}.dual-arrow{transform:rotate(90deg)}}
+  .dual-side{background:var(--card-2);border-radius:8px;padding:14px;border-top:3px solid var(--cyan)}
+  .dual-side.slow{border-top-color:var(--purple)}
+  .dual-side .dtype{font-family:"SF Mono",Menlo,monospace;color:var(--cyan);font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px}
+  .dual-side.slow .dtype{color:var(--purple)}
+  .dual-side .dwhere{font-weight:600;font-size:14px;margin-bottom:6px}
+  .dual-side .dwhy{color:var(--muted);font-size:12px;line-height:1.55}
+  .dual-arrow{display:flex;align-items:center;color:var(--muted);font-size:18px}
+
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green);white-space:pre-wrap}
+  .evidence::before{content:"代码事实 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>06 · Hatchet Durable Task</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>06 · Hatchet Durable Task</h1>
+    <div class="sub">为什么 Athena 跑 30 分钟、用户离线 8 小时回来，按钮还能点</div>
+  </div>
+
+  <div class="lead">
+    Athena 的 7 步 autopilot 经常要跑 30-60 分钟，中间还要<strong>等人在 IM platform 上点确认按钮</strong>（步骤 3 和 4），人可能 8 小时后才看到。如果是普通 background task：容器一重启 / worker 一挂，整个流程作废。<br>
+    用 <strong>Hatchet durable task</strong> 解决：<strong>状态持久化、断点续传、event 等待跨重启</strong>。代价是要按 Hatchet 的怪规矩写代码 —— 比如不能用动态 event key，得用 <strong>固定 type + CEL filter</strong>。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>为啥不用普通 background task</h2>
+
+  <p>对比一下"普通 asyncio task" vs "Hatchet durable_task"在 Athena 场景下的表现：</p>
+
+  <div class="compare">
+    <div class="cside bad">
+      <div class="ctitle">❌ 普通 asyncio.create_task</div>
+      <div class="csub">最常见的 Python 做法</div>
+      <ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.8">
+        <li>容器重启 → 任务<strong style="color:var(--text)">直接丢</strong></li>
+        <li>worker crash → 同上</li>
+        <li>等用户点按钮 30 分钟 → 内存里 hold 一个挂起的 coroutine，<strong style="color:var(--text)">浪费连接 / FD</strong></li>
+        <li>没有重试机制</li>
+        <li>没有跨实例观测</li>
+      </ul>
+    </div>
+    <div class="cside good">
+      <div class="ctitle">✓ @hatchet.durable_task</div>
+      <div class="csub">Athena 选的方案</div>
+      <ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.8">
+        <li>状态<strong style="color:var(--text)">每个 await 边界都 checkpoint</strong> 到 Hatchet 后端</li>
+        <li>容器重启 → 在原 await 处<strong style="color:var(--text)">无缝 resume</strong></li>
+        <li>等 event 不占进程资源 —— Hatchet 服务端等</li>
+        <li>失败自动重试（可配 max_retries）</li>
+        <li>有<strong style="color:var(--text)">观测后台</strong> 看每个 task 哪步、跑多久</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>autopilot 工作流定义</h2>
+
+  <pre><span class="key">@hatchet.durable_task</span>(
+    name=<span class="str">"campaign-autopilot"</span>,
+    input_validator=<span class="ann">AutoPilotInput</span>,
+    execution_timeout=<span class="str">"60m"</span>,    <span class="com"># 一次完整运行最长 60 分钟</span>
+    schedule_timeout=<span class="str">"60m"</span>,     <span class="com"># 排队等 worker 最长 60 分钟</span>
+)
+<span class="key">async def</span> autopilot(input: AutoPilotInput, ctx: DurableContext) -> <span class="ann">dict</span>:
+    <span class="com">"""Main durable task — runs all 7 steps sequentially.
+    Uses durable context for human-in-the-loop waits."""</span>
+    ...</pre>
+
+  <p>关键参数：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">execution_timeout=60m</strong> · 整个工作流总执行上限。LLM 慢 + 人工等待都算在里头</li>
+    <li><strong style="color:var(--text)">schedule_timeout=60m</strong> · 提交后等 worker 接手的最长时间。worker 全忙时排队</li>
+    <li><strong style="color:var(--text)">input_validator</strong> · Pydantic 模型，运行时校验输入</li>
+    <li><strong style="color:var(--text)">DurableContext</strong> · 不是普通 Context —— 这是 Hatchet 提供的"可持久化上下文"，每次 await 都做 checkpoint</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>核心模式 · 固定 event type + CEL filter</h2>
+
+  <p>workflow 等用户点确认按钮的代码 —— 这是 Hatchet 最关键的"踩坑笔记"：</p>
+
+  <div class="compare">
+    <div class="cside bad">
+      <div class="ctitle">❌ BAD — 动态 event key</div>
+      <pre><span class="key">await</span> ctx.aio_wait_for_event(
+    <span class="str">f"human_confirm:{run_id}:step{N}"</span>
+)</pre>
+      <p style="color:var(--muted);font-size:11.5px;line-height:1.55;margin-top:6px">每个 run / step 一个唯一 key。worker 重启后这个 key <strong style="color:var(--red)">没被重新注册</strong> —— Hatchet 收到 event 找不到接收者，直接丢。用户点了按钮永远没反应。</p>
+    </div>
+    <div class="cside good">
+      <div class="ctitle">✓ GOOD — 固定 type + CEL</div>
+      <pre><span class="key">await</span> ctx.aio_wait_for_event(
+    <span class="str">"human_confirm"</span>,
+    <span class="str">f"input.run_id == '{run_id}' "</span>
+    <span class="str">"&& input.step_id == '{N}'"</span>
+)</pre>
+      <p style="color:var(--muted);font-size:11.5px;line-height:1.55;margin-top:6px">固定 type 在 Hatchet server 端永远是 "known"。CEL filter 在<strong style="color:var(--green)">服务端</strong>从 event log 里筛出匹配的，重启不影响。</p>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <strong>这条规则写在文件顶部注释里：</strong> "Use FIXED event type + CEL filter, NOT dynamic event keys." —— 配 ref 链接和踩坑日期。<br>
+    "<strong>Why: Hatchet drops events for unregistered keys.</strong> Dynamic keys are unique per run — after worker restart, the key isn't re-registered, and events arrive to nobody."
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>4 种用户 action</h2>
+
+  <p>用户在 IM platform 卡片上点按钮，触发 4 种可能的 action。Hatchet event 的 input.action 字段区分：</p>
+
+  <div class="actions">
+    <div class="action confirm">
+      <div class="an">confirm</div>
+      <div class="ad">"OK，过"。接受当前 step 输出，进入下一 step</div>
+    </div>
+    <div class="action reject">
+      <div class="an">reject</div>
+      <div class="ad">"不行，重做"。带 reason 触发 <code>on_step_rejection</code> 生成 reflection，再跑一次本 step</div>
+    </div>
+    <div class="action cancel">
+      <div class="an">cancel</div>
+      <div class="ad">"算了，停"。剩余 step 全标 error，workflow 直接返回</div>
+    </div>
+    <div class="action skip">
+      <div class="an">skip</div>
+      <div class="ad">"这步跳过"。step 标 done，继续下 step（不重跑）</div>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>容错时间线 · 容器在第 4 步崩了</h2>
+
+  <p>展示一次真实的 crash + resume 时间线：</p>
+
+  <div class="timeline">
+    <div class="tstep">
+      <div class="time">00:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>autopilot 启动</strong><div class="h">用户 POST /autopilot，Hatchet 提交 task，分到 worker A</div></div>
+    </div>
+    <div class="tstep">
+      <div class="time">00:30</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 1 完成</strong><div class="h">Campaign Performance · checkpoint 到 Hatchet + 写 WorkflowState 文件</div></div>
+    </div>
+    <div class="tstep">
+      <div class="time">02:15</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 2 完成</strong><div class="h">Top Creators · 同样 checkpoint</div></div>
+    </div>
+    <div class="tstep human">
+      <div class="time">02:30</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 3 等用户确认</strong><div class="h">Underperformer Diagnosis 跑完 → 发卡片 → ctx.aio_wait_for_event("human_confirm", ...)</div></div>
+    </div>
+    <div class="tstep human">
+      <div class="time">02:30 → 12:30</div>
+      <div class="dot"></div>
+      <div class="body"><strong>挂起 10 小时</strong><div class="h">用户下班了。worker 完全空闲（不像普通 task 那样占内存）</div></div>
+    </div>
+    <div class="tstep crash">
+      <div class="time">06:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>容器重启（部署新版）</strong><div class="h">worker A 没了。但任务状态在 Hatchet server 安全</div></div>
+    </div>
+    <div class="tstep restart">
+      <div class="time">06:01</div>
+      <div class="dot"></div>
+      <div class="body"><strong>worker B 接管</strong><div class="h">新 worker 注册，Hatchet 把任务交给它，从最后 checkpoint resume —— 就是"还在等 human_confirm event"</div></div>
+    </div>
+    <div class="tstep human">
+      <div class="time">12:30</div>
+      <div class="dot"></div>
+      <div class="body"><strong>用户点击 confirm</strong><div class="h">IM platform 按钮 → /button_callback → 发 "human_confirm" event 到 Hatchet（带 run_id / step_id input）</div></div>
+    </div>
+    <div class="tstep">
+      <div class="time">12:30</div>
+      <div class="dot"></div>
+      <div class="body"><strong>CEL filter 匹配 → worker B 唤醒</strong><div class="h">aio_wait_for_event 返回，workflow 继续 Step 4</div></div>
+    </div>
+    <div class="tstep">
+      <div class="time">15:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 4-7 顺序完成</strong><div class="h">Daily Report 发送，autopilot 返回 done</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>用户感知 = "我下班前提交，第二天上班还能继续点"</strong>。后端 worker 换过、容器重启过、版本升级过 —— 用户完全不察觉。这就是 durable 的价值。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>双源读 · 跨进程的 race 修复</h2>
+
+  <p>Hatchet 的一个隐藏陷阱 —— 在 async 边界，DurableContext <strong>可能在不同 Python 进程恢复</strong>。模块级缓存会消失。</p>
+
+  <div class="evidence">
+# workflow/hatchet_workflow.py · line 462-488 注释
+# Dual-source read (2026-04-15 residual race fix):
+# Hatchet DurableContext may suspend the worker at async boundaries and
+# resume in a different Python process. The module-level
+# _creator_perf_json_cache is process-local and would silently disappear
+# across such a restart, causing FastAPI to fall through to Nova Micro
+# extraction → card never renders.
+# Fast path: same-process module cache (O(1) dict lookup).
+# Durability path: WorkflowState JSON file (populated at line 826 by
+# _prefetch_creator_perf, survives worker restarts).
+</div>
+
+  <p>修复方案 = <strong>双源读</strong>：</p>
+
+  <div class="dual-box">
+    <div style="font-weight:600;font-size:14px;margin-bottom:4px">_creator_perf_json_cache 的读取策略</div>
+    <div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">先快后慢 —— 命中快路径就用，没命中再去慢路径</div>
+
+    <div class="dual-grid">
+      <div class="dual-side">
+        <div class="dtype">fast path</div>
+        <div class="dwhere">_creator_perf_json_cache[run_id]</div>
+        <div class="dwhy">模块级 dict · 同进程 · O(1) 查找<br>命中 ≈ 99% 的正常情况</div>
+      </div>
+      <div class="dual-arrow">→ 没命中 →</div>
+      <div class="dual-side slow">
+        <div class="dtype">durable path</div>
+        <div class="dwhere">WorkflowState().get_run(run_id)</div>
+        <div class="dwhy">workspace 卷上的 JSON 文件<br>跨进程 / 跨容器都存在</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>修复成本：</strong> 多写一段 fallback 代码，多一次 IO（仅在 cache miss 时）。<strong>问题症状：</strong> "卡片永远不渲染"—— 因为 cache 丢了 → FastAPI 拿不到 structured JSON → 走 Nova Micro 抽取 → 失败 → 前端无法识别 schema。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>WorkflowState · workspace 上的状态文件</h2>
+
+  <p>Hatchet 已经管 task 状态了，<strong>为什么还要 WorkflowState</strong>？答案在 <code>autopilot()</code> 的 P2 注释里：</p>
+
+  <div class="evidence">
+# CRASH-SAFE STATE (P2)
+# WorkflowState persists step results to workspace volume
+# (survives container restarts).
+# On Hatchet replay after crash, completed steps are already in the state file.
+
+wf_state = WorkflowState()
+existing_run = wf_state.get_run(run_id)
+if not existing_run:
+    wf_state.create_run(campaign_id, chat_id, run_id=run_id)
+wf_state.update_run(run_id, status="running")
+
+# Restore step state from file if resuming after crash
+saved_run = wf_state.get_run(run_id)
+if saved_run:
+    for saved_step in saved_run.get("steps", []):
+        sid = saved_step["id"]
+        if saved_step.get("status") == "done":
+            steps_state[sid]["status"] = "done"
+            steps_state[sid]["summary"] = saved_step.get("summary")
+</div>
+
+  <p><strong>Hatchet checkpoint 只能粒度到 await 边界</strong>。step 中间发生的<strong>各种局部状态变化</strong>（已发送哪些卡片、已拉哪些数据缓存、已写入 progress.md 哪些段）不会自动持久化。WorkflowState 是这层的补丁：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>每个 step 完成时手动写 WorkflowState · 包括 status / summary / step_specific_data</li>
+    <li>Hatchet 重放 task 时（容器重启 → resume）也会从 <code>step 0</code> 重新执行 autopilot()</li>
+    <li>但 autopilot() 一开始先<strong style="color:var(--text)">检查 WorkflowState</strong>，已 done 的 step 直接跳过、读取保存的 summary</li>
+    <li>结果：用户不会看到"step 1 again? again?"的诡异界面</li>
+  </ul>
+
+  <div class="callout warn">
+    <strong>WorkflowState ≠ Hatchet state：</strong> 是两层独立的状态。Hatchet 管"task 这一次跑到了哪个 await"；WorkflowState 管"业务上哪些 step 完成了"。两层一起才完整。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>三层进度同步 · IM platform / FastAPI / Workspace</h2>
+
+  <p>每个 step 状态变化都要广播到三处：</p>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center;font-family:'SF Mono',Menlo,monospace;font-size:13px">
+    <div style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);display:inline-block;padding:8px 16px;border-radius:6px;font-weight:600">step.status 变化</div>
+    <div style="color:var(--muted);margin:8px 0">↓ fan-out 到三处</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px">
+      <div style="background:var(--blue-dim);border:1px solid var(--blue);color:var(--blue);padding:10px;border-radius:6px">
+        IM platform progress card<br><span style="color:var(--muted);font-size:11px;font-family:sans-serif">update_card() · 用户 IM 可见</span>
+      </div>
+      <div style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);padding:10px;border-radius:6px">
+        FastAPI _push_progress<br><span style="color:var(--muted);font-size:11px;font-family:sans-serif">web UI 轮询 · 仪表盘</span>
+      </div>
+      <div style="background:var(--purple-dim);border:1px solid var(--purple);color:var(--purple);padding:10px;border-radius:6px">
+        WorkflowState JSON<br><span style="color:var(--muted);font-size:11px;font-family:sans-serif">workspace 卷 · crash 恢复</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>terminal state 必须送达 FastAPI：</strong> 代码标注 <code>_STATE_TRANSITION_STATUSES = ("done", "error", "waiting_for_human")</code> —— 这三种必须可靠送达，<strong>否则 web 仪表盘上的 step 会永远卡在 running</strong>。中间增量状态（running 中的 tool progress）允许 best-effort 丢一两个，因为下一次 push 会覆盖。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>Hatchet worker · 怎么跑起来</h2>
+
+  <p>worker 在 nanobot_server.py 启动时挂上：</p>
+
+  <pre><span class="com"># nanobot_server.py 启动逻辑</span>
+hatchet = Hatchet(debug=True)
+
+<span class="com"># Hatchet workflow handler runs on a SEPARATE THREAD</span>
+<span class="com"># (asyncio for FastAPI + thread for Hatchet)</span>
+_hatchet_worker = ...
+_hatchet_worker.start()</pre>
+
+  <p>关键架构：</p>
+
+  <ul style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li><strong style="color:var(--text)">FastAPI</strong> 跑在主 asyncio event loop —— 处理 IM webhook、API 请求</li>
+    <li><strong style="color:var(--text)">Hatchet worker</strong> 跑在<strong style="color:var(--text)">独立线程</strong> —— 处理 durable_task</li>
+    <li>两边都改 <code>_active_cards</code> 等共享 dict —— 所以必须 <code>threading.Lock</code> 不是 asyncio.Lock</li>
+  </ul>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>关键收获 · Hatchet 不是银弹</h2>
+
+  <p>Hatchet 给了 durability，但要求开发者：</p>
+
+  <ol style="color:var(--muted);font-size:13px;line-height:1.8">
+    <li>所有 event key 必须<strong style="color:var(--text)">静态固定</strong> · 用 CEL filter 区分</li>
+    <li>不能依赖<strong style="color:var(--text)">模块级 / 进程级缓存</strong> · async 边界 = 跨进程边界</li>
+    <li>业务层状态<strong style="color:var(--text)">自己持久化</strong>到 workspace · Hatchet 只管 task 调度状态</li>
+    <li>terminal state 推送要<strong style="color:var(--text)">单独重试逻辑</strong> · 别让 web UI stuck</li>
+    <li>与 asyncio 共存时 lock 用 <strong style="color:var(--text)">threading.Lock</strong>（不是 asyncio.Lock）</li>
+  </ol>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/workflow/hatchet_workflow.py</code>（1500+ 行）+ <code style="background:transparent;color:var(--muted)">workflow/state.py</code><br>
+    踩过的坑都有 .respec/*.md 文档记录 · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

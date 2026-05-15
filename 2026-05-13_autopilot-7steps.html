@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto-Pilot 7 步深扒 · 每天替团队跑的红人活动管理</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+
+  /* Step cards */
+  .step-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:14px;position:relative}
+  .step-card.human{border-left:3px solid var(--yellow);background:linear-gradient(to right, var(--yellow-dim) 0%, transparent 100px)}
+  .step-card.auto{border-left:3px solid var(--green)}
+  .step-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+  .step-num{font-family:"SF Mono",Menlo,monospace;color:var(--muted);font-size:11px;background:var(--card-2);padding:3px 8px;border-radius:4px}
+  .step-emoji{font-size:24px;line-height:1}
+  .step-title{font-weight:600;font-size:18px;flex:1;letter-spacing:-.01em}
+  .step-badge{font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 10px;border-radius:4px;font-weight:600}
+  .step-badge.auto{background:var(--green-dim);color:var(--green)}
+  .step-badge.human{background:var(--yellow-dim);color:var(--yellow)}
+  .step-task{font-size:13.5px;color:var(--text);margin-bottom:10px}
+  .step-detail{font-size:12.5px;color:var(--muted);line-height:1.55}
+
+  .step-keys{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .key{background:var(--card-2);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--text)}
+  .key.skill{color:var(--cyan);border-color:var(--cyan)}
+  .key.api{color:var(--blue);border-color:var(--blue)}
+  .key.cache{color:var(--purple);border-color:var(--purple)}
+  .key.helper{color:var(--accent);border-color:var(--accent)}
+
+  /* Mode A/B */
+  .modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  @media(max-width:720px){.modes{grid-template-columns:1fr}}
+  .mode{background:var(--card-2);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .mode.preferred{border-left:3px solid var(--green)}
+  .mode.fallback{border-left:3px solid var(--yellow)}
+  .mode .mn{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:12px;margin-bottom:4px}
+  .mode.preferred .mn{color:var(--green)}
+  .mode.fallback .mn{color:var(--yellow)}
+  .mode .md{color:var(--muted);font-size:12px;line-height:1.5}
+
+  /* Data flow */
+  .dflow{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .dstep{display:grid;grid-template-columns:32px 1fr;gap:12px;padding:8px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:4px;font-size:13px}
+  .dstep .n{background:var(--card-3);color:var(--muted);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .dstep.bg .n{background:var(--purple);color:var(--bg)}
+  .dstep .body strong{color:var(--text)}
+  .dstep .body .h{color:var(--muted);font-size:11.5px;margin-top:2px}
+
+  /* Verdict outcomes */
+  .verdicts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
+  .verdict{background:var(--card-2);border-radius:8px;padding:12px 14px;text-align:center}
+  .verdict.approved{border:1px solid var(--green);background:var(--green-dim)}
+  .verdict.rejected{border:1px solid var(--red);background:var(--red-dim)}
+  .verdict.review{border:1px solid var(--yellow);background:var(--yellow-dim)}
+  .verdict.cut{border:1px solid var(--red);background:var(--red-dim)}
+  .verdict.coach{border:1px solid var(--yellow);background:var(--yellow-dim)}
+  .verdict.keep{border:1px solid var(--green);background:var(--green-dim)}
+  .verdict.insufficient{border:1px solid var(--muted);background:var(--card-3)}
+  .verdict .vn{font-family:"SF Mono",Menlo,monospace;font-weight:600;font-size:12.5px;margin-bottom:4px}
+  .verdict.approved .vn, .verdict.keep .vn{color:var(--green)}
+  .verdict.rejected .vn, .verdict.cut .vn{color:var(--red)}
+  .verdict.review .vn, .verdict.coach .vn{color:var(--yellow)}
+  .verdict.insufficient .vn{color:var(--muted)}
+  .verdict .vd{font-size:11px;color:var(--muted);line-height:1.45}
+
+  /* Search order */
+  .search-order{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .sorder-row{display:grid;grid-template-columns:32px 1fr auto;gap:12px;padding:10px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:4px;font-size:13px}
+  .sorder-row .n{background:var(--card-3);color:var(--accent);width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .sorder-row .body strong{color:var(--text)}
+  .sorder-row .body .h{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .sorder-row .src{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;background:var(--card-3);color:var(--blue);padding:2px 6px;border-radius:3px}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>07 · Auto-Pilot 7 步</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>07 · Auto-Pilot 7 步深扒</h1>
+    <div class="sub">每天替团队跑的一整套 TikTok 红人活动管理 —— 每步具体在干什么</div>
+  </div>
+
+  <div class="lead">
+    Auto-Pilot 是 Athena 的"主业" —— 每天 6:00 / 操作员手动 <code>POST /autopilot</code> 触发，跑完一整套红人活动的<strong>诊断 → 决策 → 报告</strong>。Step 1-2 / 5-7 是<strong>纯自动</strong>（约 30-40 分钟），Step 3-4 要<strong>人在 IM platform 上点按钮</strong>决策（操作员等 1-8 小时）。<br>
+    设计上有个反复出现的模式：<strong>"deterministic 算 + LLM 写人话"</strong> —— 数字计算交给 Python，措辞 / 解读 / 战略建议交给 Claude。
+  </div>
+
+  <div class="callout warn">
+    <strong>编号小坑：</strong> 代码里 <code>STEPS</code> 数组 id 从 0 开始（0-6），所以 <code>step_id=2</code> 实际是<strong>给用户看的 "Step 3/7"</strong>。这是 Python list 索引和人类编号的对位差异。本文沿用<strong>用户视角</strong>编号 1-7。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>Step 1 · Campaign Performance</h2>
+
+  <div class="step-card auto">
+    <div class="step-head">
+      <span class="step-num">step_id=0</span>
+      <span class="step-emoji">📊</span>
+      <span class="step-title">Campaign Performance</span>
+      <span class="step-badge auto">AUTO</span>
+    </div>
+    <div class="step-task">拉过去 7 天数据，建立 baseline —— 后续步骤都基于它判断"涨还是跌"。</div>
+    <div class="step-detail">
+      多 dashboard 探测：每个 campaign 可能有 <code>{campaign_id}</code> 主 dashboard + <code>{campaign_id}_auto_agent_april</code> 新创作者群组，必须<strong>合并数据</strong>再分析。<br><br>
+      输出格式（&lt; 300 词执行摘要）：
+      <ol style="color:var(--muted);font-size:12.5px;margin-top:6px">
+        <li>总视频数、总播放、总互动</li>
+        <li>平台分布（TikTok / IG / YouTube）</li>
+        <li>趋势方向（vs 上周）</li>
+        <li>多 dashboard 时单独标 breakdown</li>
+      </ol>
+    </div>
+    <div class="step-keys">
+      <span class="key skill">skills/campaign-performance</span>
+      <span class="key api">campaign videos API</span>
+      <span class="key">prev_block (无)</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">2</span>Step 2 · Top Creators Analysis</h2>
+
+  <div class="step-card auto">
+    <div class="step-head">
+      <span class="step-num">step_id=1</span>
+      <span class="step-emoji">🌟</span>
+      <span class="step-title">Top Creators Analysis</span>
+      <span class="step-badge auto">AUTO</span>
+    </div>
+    <div class="step-task">挑前 5 名创作者（合并 dashboards 排名），提炼共性，给其他创作者复用。</div>
+    <div class="step-detail">
+      每个 top creator 输出：
+      <ul style="color:var(--muted);font-size:12.5px;margin-top:6px">
+        <li>handle + 平台</li>
+        <li>最佳表现的视频（标题、播放、互动率）</li>
+        <li>什么 hook / format 让它有效</li>
+        <li>可复制的模式</li>
+      </ul>
+      <br>
+      <strong>仅查内部创作者</strong>，prompt 明确说 "do NOT search external social media for this step"。
+    </div>
+    <div class="step-keys">
+      <span class="key skill">skills/campaign-performance</span>
+      <span class="key">prev_block: Step 1 result</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">3</span>Step 3 · Underperformer Diagnosis（人工确认）</h2>
+
+  <div class="step-card human">
+    <div class="step-head">
+      <span class="step-num">step_id=2</span>
+      <span class="step-emoji">🔍</span>
+      <span class="step-title">Underperformer Diagnosis</span>
+      <span class="step-badge human">HUMAN ✋</span>
+    </div>
+    <div class="step-task">诊断表现差的创作者，分类 <code>CUT / COACH / ON_TRACK / INSUFFICIENT_DATA</code>，等用户在 IM platform 卡片点 confirm/reject。</div>
+    <div class="step-detail">
+      这是 Auto-Pilot 最复杂的一步。它有 <strong>Mode A / Mode B 双模式</strong>：
+    </div>
+
+    <div class="modes">
+      <div class="mode preferred">
+        <div class="mn">Mode A · 首选</div>
+        <div class="md">prompt 里塞了 "=== PRE-COMPUTED CREATOR PERFORMANCE ===" 段。这是<strong style="color:var(--text)">后台预算好</strong>的结果（_prefetch_creator_perf 在用户等待 Step 1 时悄悄做）。LLM 只需<strong style="color:var(--text)">读分类 + 写诊断 / 建议</strong>，不用算数。</div>
+      </div>
+      <div class="mode fallback">
+        <div class="mn">Mode B · 回退</div>
+        <div class="md">预算失败（API 超时 / dashboard 不存在）。LLM 自己调 API 拉数据、group by creator、按 policy 阈值分类。严禁<strong style="color:var(--text)">瞎编 handle</strong> —— 若拿不到数据要明确说 "Data unavailable — strategist review required"。</div>
+      </div>
+    </div>
+
+    <div class="step-detail">每个 creator 的分类输出：</div>
+
+    <div class="verdicts">
+      <div class="verdict cut"><div class="vn">CUT</div><div class="vd">建议放弃。1 行 rationale</div></div>
+      <div class="verdict coach"><div class="vn">COACH</div><div class="vd">建议辅导。diagnose + 1-2 句具体建议</div></div>
+      <div class="verdict keep"><div class="vn">ON_TRACK</div><div class="vd">表现符合预期（≥1K avg views），不细写</div></div>
+      <div class="verdict insufficient"><div class="vn">INSUFFICIENT_DATA</div><div class="vd">数据不足，待观察</div></div>
+    </div>
+
+    <div class="callout warn" style="margin-top:12px">
+      <strong>品牌语气约束（写在 prompt 里）：</strong> "Be factual and respectful. These are real creators." 不能说 "terrible performance"，应该说 "not meeting the 1K views bar"。这是 Athena 写给真人看的，<strong>用词直接代表公司形象</strong>。
+    </div>
+
+    <div class="step-keys">
+      <span class="key helper">workflow/creator_performance.py</span>
+      <span class="key cache">_creator_perf_json_cache</span>
+      <span class="key">creator-performance-policy.md</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">4</span>Step 4 · Creator Replacement（人工确认）</h2>
+
+  <div class="step-card human">
+    <div class="step-head">
+      <span class="step-num">step_id=3</span>
+      <span class="step-emoji">🔄</span>
+      <span class="step-title">Creator Replacement</span>
+      <span class="step-badge human">HUMAN ✋</span>
+    </div>
+    <div class="step-task">给 Step 3 中被 CUT 的位置找 3 个替补，按严格搜索顺序。</div>
+
+    <div class="search-order">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:600">搜索顺序（必须严格遵守 · 读 SKILL 再搜）</div>
+
+      <div class="sorder-row">
+        <div class="n">1</div>
+        <div class="body"><strong>内部 pool</strong><div class="h">已签约 / 已合作过的创作者</div></div>
+        <div class="src">skills/creator-search</div>
+      </div>
+      <div class="sorder-row">
+        <div class="n">2</div>
+        <div class="body"><strong>44M creator 数据库</strong><div class="h">未签约但有 profile 的，bio / hashtag 匹配</div></div>
+        <div class="src">skills/creator-sourcing</div>
+      </div>
+      <div class="sorder-row">
+        <div class="n">3</div>
+        <div class="body"><strong>跨 campaign 顶级表现者</strong><div class="h">在其他 campaign 表现好、可能 fit 当前 niche</div></div>
+        <div class="src">skills/campaign-performance</div>
+      </div>
+      <div class="sorder-row">
+        <div class="n">4</div>
+        <div class="body"><strong>外部社交媒体爬虫</strong> · 最后兜底<div class="h">前 3 步还凑不够 3 人才用</div></div>
+        <div class="src">social-scraper</div>
+      </div>
+    </div>
+
+    <div class="step-detail" style="margin-top:12px">
+      <strong style="color:var(--text)">筛选标准：</strong> 同 niche，10K-500K 粉丝（中尾创作者更好谈），最近活跃。<br>
+      <strong style="color:var(--text)">bonus：</strong> 已经在自发提到产品的创作者是首选 —— "organic mention" 比硬广效果好。<br><br>
+      每个候选输出：handle、平台、粉丝数、avg views、<strong>source</strong>（来自哪个 pool）、风格 fit 解释、为什么是好替补。
+    </div>
+
+    <div class="step-keys">
+      <span class="key skill">skills/creator-search</span>
+      <span class="key skill">skills/creator-sourcing</span>
+      <span class="key skill">skills/campaign-performance</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">5</span>Step 5 · Video Review</h2>
+
+  <div class="step-card auto">
+    <div class="step-head">
+      <span class="step-num">step_id=4</span>
+      <span class="step-emoji">🎬</span>
+      <span class="step-title">Video Review</span>
+      <span class="step-badge auto">AUTO</span>
+    </div>
+    <div class="step-task">审 DRAFT 视频（草稿，未发布），按 video-preferences.md 硬规则 PASS/FAIL 给 3 种 verdict。</div>
+
+    <div class="step-detail">
+      这是一个 <strong style="color:var(--text)">"二进制判断"</strong> 任务 —— 每条规则 PASS 或 FAIL，没有"大概也行"。<br><br>
+      数据流：<br>
+      <ol style="color:var(--muted);font-size:12.5px;margin-top:6px">
+        <li><strong style="color:var(--text)">Gemini vision</strong> 后台预分析视频内容（在 Step 4 后台同步跑）</li>
+        <li>每个视频对每条硬规则给 PASS / FAIL + evidence</li>
+        <li>结果按 schema 注入到 Step 5 prompt</li>
+        <li>LLM 汇总 + 给最终 verdict</li>
+      </ol>
+    </div>
+
+    <div class="verdicts">
+      <div class="verdict approved"><div class="vn">APPROVED</div><div class="vd">所有硬规则 PASS · 直接发布</div></div>
+      <div class="verdict rejected"><div class="vn">REJECTED</div><div class="vd">任一硬规则 FAIL · 退回创作者</div></div>
+      <div class="verdict review"><div class="vn">NEEDS_REVIEW</div><div class="vd">有 SKIPPED 规则（Gemini 没分析出来）· 需人工 review</div></div>
+    </div>
+
+    <div class="callout">
+      <strong>规则定义在 video_analyzer.py 的 DEFAULT_RULES：</strong> rule id 和数量动态从这里读，prompt 里用 <code>{_rule_ids}</code> / <code>{_rule_count}</code> 插入 —— <strong>改规则不用改 prompt</strong>，硬编码已经被消除。
+    </div>
+
+    <div class="step-keys">
+      <span class="key helper">workflow/video_analyzer.py</span>
+      <span class="key cache">_video_analysis_cache</span>
+      <span class="key cache">_gemini_structured_cache</span>
+      <span class="key">video-preferences.md</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">6</span>Step 6 · Competitive Intel</h2>
+
+  <div class="step-card auto">
+    <div class="step-head">
+      <span class="step-num">step_id=5</span>
+      <span class="step-emoji">📡</span>
+      <span class="step-title">Competitive Intel</span>
+      <span class="step-badge auto">AUTO</span>
+    </div>
+    <div class="step-task">扫竞品 + niche 趋势 —— 给 Step 4 找替补和 Step 7 日报当原材料。</div>
+
+    <div class="step-detail">完全独立的子系统在 <code>workflow/competitive_intel.py</code>。三种数据源：</div>
+
+    <div class="dflow">
+      <div class="dstep bg">
+        <div class="n">A</div>
+        <div class="body"><strong>Exa 搜索 · 竞品市场动作</strong><div class="h">_search_exa_competitor_marketing(competitor_name) · 找新闻 / 博客 / 社交媒体关于竞品 marketing 的报道</div></div>
+      </div>
+      <div class="dstep bg">
+        <div class="n">B</div>
+        <div class="body"><strong>Exa 搜索 · niche 战术</strong><div class="h">_search_exa_niche_tactics(niche) · 该 niche 当前流行的 hook / format / 创作者</div></div>
+      </div>
+      <div class="dstep bg">
+        <div class="n">C</div>
+        <div class="body"><strong>TikTok API · 视频 + hashtag</strong><div class="h">_search_videos / _fetch_hashtag_data · 趋势播放量、热门 sound</div></div>
+      </div>
+    </div>
+
+    <div class="step-detail" style="margin-top:10px">
+      所有数据汇总成 <strong>format_competitive_data()</strong> 文本块，注入到 Step 6 prompt + 缓存到 <code>_competitive_intel_cache</code>，<strong>Step 7 日报也用得上</strong>。
+    </div>
+
+    <div class="step-keys">
+      <span class="key helper">workflow/competitive_intel.py</span>
+      <span class="key api">Exa search API</span>
+      <span class="key api">TikTok scraper API</span>
+      <span class="key cache">_competitive_intel_cache</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">7</span>Step 7 · Daily Report</h2>
+
+  <div class="step-card auto">
+    <div class="step-head">
+      <span class="step-num">step_id=6</span>
+      <span class="step-emoji">📝</span>
+      <span class="step-title">Daily Report</span>
+      <span class="step-badge auto">AUTO</span>
+    </div>
+    <div class="step-task">把前 6 步的关键信息汇总成日报，发回 IM 群。</div>
+
+    <div class="step-detail">
+      prev_block 累积传递 —— Step 7 的 prompt 拼了前 6 步的产出摘要。所以 Step 7 不是重新读数据，而是<strong style="color:var(--text)">把已有结论组织成可读日报</strong>。<br><br>
+      输出内容（典型结构）：
+      <ul style="color:var(--muted);font-size:12.5px;margin-top:6px">
+        <li><strong>📊 Performance</strong> · Step 1 摘要</li>
+        <li><strong>🌟 Top performers</strong> · Step 2 top 5</li>
+        <li><strong>🔍 Underperformers</strong> · Step 3 决策结果（用户 confirm 后的）</li>
+        <li><strong>🔄 Replacements</strong> · Step 4 接受的替补</li>
+        <li><strong>🎬 Video reviews</strong> · Step 5 verdict 统计</li>
+        <li><strong>📡 Market intel</strong> · Step 6 trends</li>
+        <li><strong>📌 Action items</strong> · 明天该做什么</li>
+      </ul>
+    </div>
+
+    <div class="step-keys">
+      <span class="key">prev_block: Steps 1-6</span>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">8</span>Mode A 的预算机制 · 在用户等待时悄悄算</h2>
+
+  <p>Step 3 / 4 / 5 都用 "<strong>预算 + 缓存注入</strong>" 模式 —— 重活在用户等待时跑，Step 真正执行时只读结果。这是 Athena 工程上最关键的<strong>响应性优化</strong>。</p>
+
+  <div class="dflow">
+    <div class="dstep bg">
+      <div class="n">1</div>
+      <div class="body"><strong>autopilot() 启动后立即</strong><div class="h">不等 Step 1，平行启动 _prefetch_creator_perf() · prefetch_competitive_intel() · video_analysis 调用</div></div>
+    </div>
+    <div class="dstep bg">
+      <div class="n">2</div>
+      <div class="body"><strong>Step 1 / Step 2 跑</strong><div class="h">用户看到第一步推进，后台预算并行进行</div></div>
+    </div>
+    <div class="dstep bg">
+      <div class="n">3</div>
+      <div class="body"><strong>预算完成 → 写 3 个 module 级 cache</strong><div class="h">_creator_perf_json_cache + _creator_perf_text_cache + _video_analysis_cache + _competitive_intel_cache · 同时写 WorkflowState 文件</div></div>
+    </div>
+    <div class="dstep bg">
+      <div class="n">4</div>
+      <div class="body"><strong>Step 3 prompt 拼 PRE-COMPUTED 段</strong><div class="h">_creator_perf_text_cache[run_id] 注入；Mode A 生效</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>双源读保护：</strong> 第 6 篇文章讲过 —— Hatchet 在 await 边界可能换进程，模块 cache 丢。所以每个缓存都<strong>同时写 WorkflowState 文件</strong>，cache miss 时从文件回退。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">9</span>用户拒绝时的 reflection 机制</h2>
+
+  <p>Step 3 / 4 等到 confirm 时还有第 4 个 action：<strong>reject + reason</strong>。这时不是简单重跑，而是触发 <strong>v7 reflection</strong> 流程：</p>
+
+  <div class="dflow">
+    <div class="dstep">
+      <div class="n">1</div>
+      <div class="body"><strong>用户点 Reject + 写原因</strong><div class="h">"@<creator-1> 这周才入组，先观察"</div></div>
+    </div>
+    <div class="dstep">
+      <div class="n">2</div>
+      <div class="body"><strong>on_step_rejection() 生成 reflection</strong><div class="h">LLM 读 step output + 用户 reason，写一段"为什么这次输出不行"的反思</div></div>
+    </div>
+    <div class="dstep">
+      <div class="n">3</div>
+      <div class="body"><strong>reflection 存到 workspace + pgvector</strong><div class="h">未来同 campaign 跑 Step 3 时这条 reflection 会被 memory.search() 检索到</div></div>
+    </div>
+    <div class="dstep">
+      <div class="n">4</div>
+      <div class="body"><strong>verification_feedback 注入 Step prompt</strong><div class="h">"OPERATOR REJECTION: ... REFLECTION: ... Please redo this step addressing feedback."</div></div>
+    </div>
+    <div class="dstep">
+      <div class="n">5</div>
+      <div class="body"><strong>step 重新跑</strong><div class="h">这次 LLM 知道上次为啥被拒，能避开同样错误</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>这是组织级学习的雏形：</strong> 操作员的"拒绝原因"被沉淀进 memory，<strong>同一个 campaign 后续运行都会受益</strong>。Athena 不是"每天从零开始"，是"每天比昨天聪明一点"。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">10</span>整体调度图</h2>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;font-family:'SF Mono',Menlo,monospace;font-size:12px;line-height:1.7;color:var(--text)">
+    <div>触发: POST /autopilot {campaign_id}</div>
+    <div style="color:var(--muted)">↓</div>
+    <div>Hatchet durable_task("campaign-autopilot")</div>
+    <div style="color:var(--muted)">↓ 并行启动后台预算</div>
+    <div style="background:var(--purple-dim);padding:6px 10px;border-radius:4px;color:var(--purple)">_prefetch_creator_perf · prefetch_competitive_intel · video gemini</div>
+    <div style="color:var(--muted)">↓</div>
+    <div style="background:var(--green-dim);padding:6px 10px;border-radius:4px;color:var(--green)">📊 Step 1 · Campaign Performance (AUTO)</div>
+    <div style="color:var(--muted)">↓</div>
+    <div style="background:var(--green-dim);padding:6px 10px;border-radius:4px;color:var(--green)">🌟 Step 2 · Top Creators (AUTO)</div>
+    <div style="color:var(--muted)">↓</div>
+    <div style="background:var(--yellow-dim);padding:6px 10px;border-radius:4px;color:var(--yellow)">🔍 Step 3 · Underperformer Diagnosis (HUMAN ✋)</div>
+    <div style="color:var(--muted)">↓ aio_wait_for_event("human_confirm" + CEL)</div>
+    <div style="background:var(--yellow-dim);padding:6px 10px;border-radius:4px;color:var(--yellow)">🔄 Step 4 · Creator Replacement (HUMAN ✋)</div>
+    <div style="color:var(--muted)">↓ aio_wait_for_event</div>
+    <div style="background:var(--green-dim);padding:6px 10px;border-radius:4px;color:var(--green)">🎬 Step 5 · Video Review (AUTO)</div>
+    <div style="color:var(--muted)">↓</div>
+    <div style="background:var(--green-dim);padding:6px 10px;border-radius:4px;color:var(--green)">📡 Step 6 · Competitive Intel (AUTO)</div>
+    <div style="color:var(--muted)">↓</div>
+    <div style="background:var(--green-dim);padding:6px 10px;border-radius:4px;color:var(--green)">📝 Step 7 · Daily Report (AUTO)</div>
+    <div style="color:var(--muted)">↓</div>
+    <div>autopilot return → 日报推 IM platform · 进度卡片 finalize</div>
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/workflow/steps.py</code>（7 步 prompts）+ <code style="background:transparent;color:var(--muted)">workflow/{creator_performance, competitive_intel, video_analyzer}.py</code>（helper 系统）<br>
+    KNOWLEDGE DOCS · creator-performance-policy.md · video-preferences.md（在 nanobot workspace 里 · 操作员可编辑）· 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>

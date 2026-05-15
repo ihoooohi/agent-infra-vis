@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Loop 核心循环 · Athena/Fleet 大脑引擎</title>
+<style>
+  :root {
+    --bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;
+    --border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;
+    --accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);
+    --green:#3fb950;--green-dim:rgba(63,185,80,.15);
+    --yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);
+    --red:#f85149;--red-dim:rgba(248,81,73,.12);
+    --blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);
+    --purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);
+    --pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);
+    --cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px;transition:all .15s}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code,.mono{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px;color:var(--text)}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+
+  /* Evidence card */
+  .evidence{background:var(--card-2);border-radius:8px;padding:12px 16px;font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--muted);margin:12px 0;border-left:2px solid var(--green)}
+  .evidence::before{content:"线上实测 · evidence";display:block;color:var(--green);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;font-weight:600}
+
+  /* Component grid */
+  .component-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:12px}
+  .comp{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-top:3px solid var(--accent)}
+  .comp.purple{border-top-color:var(--purple)}
+  .comp.blue{border-top-color:var(--blue)}
+  .comp.green{border-top-color:var(--green)}
+  .comp.cyan{border-top-color:var(--cyan)}
+  .comp.pink{border-top-color:var(--pink)}
+  .comp.yellow{border-top-color:var(--yellow)}
+  .comp .cname{font-weight:600;font-size:13.5px;margin-bottom:2px}
+  .comp .ctype{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--muted);margin-bottom:6px}
+  .comp .cdesc{font-size:12.5px;color:var(--muted);line-height:1.5}
+
+  /* Iteration loop diagram */
+  .iter-diagram{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;position:relative}
+  .iter-frame{border:1px dashed var(--border-strong);border-radius:10px;padding:18px;position:relative}
+  .iter-frame::before{content:"for iteration in range(max_iterations):";position:absolute;top:-10px;left:18px;background:var(--card);padding:0 8px;font-size:11px;color:var(--accent);font-family:"SF Mono",Menlo,monospace}
+  .iter-step{display:grid;grid-template-columns:32px 1fr auto;gap:12px;padding:10px 12px;align-items:center;background:var(--card-2);border-radius:6px;margin-bottom:6px;font-size:13px}
+  .iter-step.hook{background:var(--accent-dim);border-left:2px solid var(--accent)}
+  .iter-step .num{background:var(--card-3);color:var(--muted);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-family:"SF Mono",Menlo,monospace;font-weight:600}
+  .iter-step.hook .num{background:var(--accent);color:var(--bg)}
+  .iter-step .body{flex:1}
+  .iter-step .body strong{color:var(--text)}
+  .iter-step .body .hint{color:var(--muted);font-size:11.5px;margin-top:2px}
+  .iter-step .tag{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;background:var(--card-3);color:var(--muted);padding:2px 6px;border-radius:3px}
+  .iter-step.hook .tag{background:rgba(0,0,0,.3);color:var(--accent)}
+
+  /* Branch box */
+  .branch{margin:8px 0;padding:14px;border-radius:8px;border:1px solid var(--border);background:var(--card-3)}
+  .branch.tool{border-left:3px solid var(--green)}
+  .branch.final{border-left:3px solid var(--blue)}
+  .branch.error{border-left:3px solid var(--red)}
+  .branch-title{font-weight:600;font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .branch.tool .branch-title{color:var(--green)}
+  .branch.final .branch-title{color:var(--blue)}
+  .branch.error .branch-title{color:var(--red)}
+  .branch-title .cond{font-family:"SF Mono",Menlo,monospace;font-size:11px;background:var(--card-2);padding:2px 6px;border-radius:3px;font-weight:400}
+
+  /* Hooks table */
+  .hooks-table{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .hooks-table .hrow{display:grid;grid-template-columns:200px 1fr 100px;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border);align-items:center}
+  .hooks-table .hrow:last-child{border-bottom:none}
+  .hooks-table .hrow.head{background:var(--card-2);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:10px 16px}
+  .hooks-table .hk{font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--accent);font-weight:600}
+  .hooks-table .desc{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .hooks-table .desc strong{color:var(--text)}
+  .hooks-table .when{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--blue);text-align:right}
+
+  /* Tools chip groups */
+  .tool-group{margin-bottom:14px}
+  .tg-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px;font-weight:600}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{background:var(--card-2);border:1px solid var(--border);border-left:2px solid var(--green);border-radius:4px;padding:4px 10px;font-size:12px;font-family:"SF Mono",Menlo,monospace}
+  .chip.optional{border-left-color:var(--yellow)}
+  .chip.lark{border-left-color:var(--cyan)}
+  .chip.subagent{border-left-color:var(--purple)}
+
+  /* Checkpoint flow */
+  .ckpt-flow{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+  .ckpt-row{display:grid;grid-template-columns:160px 1fr;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center}
+  .ckpt-row:last-child{border-bottom:none}
+  .ckpt-phase{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--purple-dim);color:var(--purple);padding:4px 10px;border-radius:4px;text-align:center;font-weight:600}
+  .ckpt-desc{font-size:13px;color:var(--muted);line-height:1.55}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>01 · Agent Loop 核心循环</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>01 · Agent Loop 核心循环</h1>
+    <div class="sub">Athena / Echo / 13 fleet agents 共用的大脑引擎 —— <code>nanobot/agent/loop.py</code></div>
+  </div>
+
+  <div class="lead">
+    Agent Loop 是个独立的 PyPI 包 <strong>nanobot-ai</strong>。它不知道 IM platform、不知道 Athena、不知道营销 —— 它只懂"<strong>构造 prompt → 调 LLM → 解析 tool_use → 跑工具 → 循环</strong>"。所有产品语义都靠 hooks 和工具注入。<br>
+    Athena 和 11 个 skin-bot、Echo，都是同一个 <code>AgentLoop</code> 类，靠 workspace 路径 + 注入的 hooks 区分人格。
+  </div>
+
+  <div class="evidence">
+agent-primary 容器内 pip show nanobot-ai:<br>
+&nbsp;&nbsp;Name: nanobot-ai<br>
+&nbsp;&nbsp;Version: 0.1.5.post1<br>
+&nbsp;&nbsp;Summary: A lightweight personal AI assistant framework (the company fork)<br>
+&nbsp;&nbsp;Location: /usr/local/lib/python3.11/site-packages
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">1</span>顶层定位 · 谁、住哪、长啥样</h2>
+
+  <p>整个 agent 系统其实是<strong>三层套娃</strong>：</p>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+      <div style="background:var(--accent-dim);border:1px solid var(--accent);border-radius:8px;padding:14px 28px;min-width:380px">
+        <div style="font-weight:600;color:var(--accent)">agent-primary 容器 (Docker)</div>
+        <div style="color:var(--muted);font-size:11.5px;font-family:'SF Mono',monospace;margin-top:2px">the-platform/nanobot-agent:22ecd66 · Python 3.11</div>
+      </div>
+      <div style="color:var(--muted);font-size:20px;line-height:1">↓ 启动 python -m</div>
+      <div style="background:var(--blue-dim);border:1px solid var(--blue);border-radius:8px;padding:14px 28px;min-width:380px">
+        <div style="font-weight:600;color:var(--blue)">auto-agent/ 仓库代码</div>
+        <div style="color:var(--muted);font-size:11.5px;font-family:'SF Mono',monospace;margin-top:2px">nanobot_server.py · server.py · workflow/ · lark/</div>
+      </div>
+      <div style="color:var(--muted);font-size:20px;line-height:1">↓ import + 实例化</div>
+      <div style="background:var(--purple-dim);border:1px solid var(--purple);border-radius:8px;padding:14px 28px;min-width:380px">
+        <div style="font-weight:600;color:var(--purple)">nanobot-ai PyPI 包 (lib)</div>
+        <div style="color:var(--muted);font-size:11.5px;font-family:'SF Mono',monospace;margin-top:2px">/usr/local/lib/python3.11/site-packages/nanobot/agent/loop.py</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>关键区分：</strong> auto-agent/ 是<strong>宿主代码</strong>（产品 / 业务），nanobot 是<strong>框架库</strong>。auto-agent 启动时 <code>from nanobot.agent.loop import AgentLoop</code>，传入自己的 workspace、hooks、tools。改 Athena 业务逻辑改 auto-agent/，改大脑底层改 nanobot 包。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">2</span>AgentLoop 持有什么 · 11 大组件</h2>
+
+  <p>实例化时 <code>AgentLoop()</code> 在内部组装出这一堆协作组件：</p>
+
+  <div class="component-grid">
+    <div class="comp"><div class="cname">bus</div><div class="ctype">MessageBus</div><div class="cdesc">inbound/outbound 消息队列；用户消息从这进来、bot 回复从这出去</div></div>
+    <div class="comp purple"><div class="cname">provider</div><div class="ctype">LLMProvider</div><div class="cdesc">AWS Bedrock 适配器（封装 Claude Sonnet/Opus），后面也支持 OpenAI/MCP</div></div>
+    <div class="comp blue"><div class="cname">context</div><div class="ctype">ContextBuilder</div><div class="cdesc">拼装 system prompt — identity + SOUL.md + memory + skills</div></div>
+    <div class="comp blue"><div class="cname">sessions</div><div class="ctype">SessionManager</div><div class="cdesc">维护多个 chat_id 的对话历史；workspace 持久化</div></div>
+    <div class="comp green"><div class="cname">tools</div><div class="ctype">ToolRegistry</div><div class="cdesc">12 个内置工具 + MCP tools + 自定义</div></div>
+    <div class="comp green"><div class="cname">runner</div><div class="ctype">AgentRunner</div><div class="cdesc">真正跑 iteration for-loop 的子组件</div></div>
+    <div class="comp purple"><div class="cname">subagents</div><div class="ctype">SubagentManager</div><div class="cdesc">spawn 工具的后端 —— 让主 agent 开子 agent 跑并行任务</div></div>
+    <div class="comp cyan"><div class="cname">consolidator</div><div class="cdesc">把对话固化进长期 memory（pgvector）</div></div>
+    <div class="comp cyan"><div class="cname">dream</div><div class="cdesc">"夜间梦境"—— 离线整理记忆、生成 lessons</div></div>
+    <div class="comp yellow"><div class="cname">commands</div><div class="ctype">CommandRouter</div><div class="cdesc">slash 命令（/stop、/reset、/status 等）路由</div></div>
+    <div class="comp pink"><div class="cname">_concurrency_gate</div><div class="ctype">asyncio.Semaphore</div><div class="cdesc"><code>NANOBOT_MAX_CONCURRENT_REQUESTS</code>，默认 8 —— 限制并发会话数</div></div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">3</span>iteration 循环 · 大脑怎么转</h2>
+
+  <p>核心在 <code>AgentRunner.run(spec)</code>，就是一个 <code>for iteration in range(max_iterations)</code>。每一轮要么调出工具调用要么终结。</p>
+
+  <div class="iter-diagram">
+    <div class="iter-frame">
+      <div class="iter-step"><div class="num">1</div><div class="body"><strong>预算控制</strong><div class="hint">_apply_tool_result_budget · _snip_history — 长上下文裁剪</div></div><div class="tag">context.py</div></div>
+      <div class="iter-step hook"><div class="num">H</div><div class="body"><strong>hook.before_iteration(ctx)</strong><div class="hint">_LoopHook 在这记 _turn_start，重置 ttft_ms</div></div><div class="tag">hook</div></div>
+      <div class="iter-step"><div class="num">2</div><div class="body"><strong>调 LLM</strong> · _request_model(spec, messages, hook, ctx)<div class="hint">Bedrock Claude Sonnet/Opus；走流式</div></div><div class="tag">provider</div></div>
+      <div class="iter-step"><div class="num">3</div><div class="body"><strong>记 usage</strong><div class="hint">prompt_tokens / completion_tokens / cached_tokens 累积</div></div></div>
+
+      <div class="branch tool">
+        <div class="branch-title">分支 A · 有工具调用 <span class="cond">if response.has_tool_calls</span></div>
+        <div class="iter-step hook"><div class="num">H</div><div class="body"><strong>hook.on_stream_end(resuming=True)</strong><div class="hint">通知 IM 卡片 "thinking" → "working"</div></div><div class="tag">hook</div></div>
+        <div class="iter-step"><div class="num">4a</div><div class="body"><strong>追加 assistant msg</strong>（含 tool_calls）到历史</div></div>
+        <div class="iter-step"><div class="num">5a</div><div class="body"><strong>checkpoint "awaiting_tools"</strong><div class="hint">持久化到 session._set_runtime_checkpoint —— 容器挂了能续</div></div><div class="tag">ckpt</div></div>
+        <div class="iter-step hook"><div class="num">H</div><div class="body"><strong>hook.before_execute_tools(ctx)</strong><div class="hint">_LoopHook 把 thought + tool_hint 推到 IM 卡片（"我在调 web_search…"）</div></div><div class="tag">hook</div></div>
+        <div class="iter-step"><div class="num">6a</div><div class="body"><strong>并发执行工具</strong> · _execute_tools(concurrent_tools=True)<div class="hint">多个 tool_call 同时跑（不阻塞）</div></div></div>
+        <div class="iter-step"><div class="num">7a</div><div class="body"><strong>追加 tool results</strong> 到历史</div></div>
+        <div class="iter-step"><div class="num">8a</div><div class="body"><strong>checkpoint "post_tools"</strong></div><div class="tag">ckpt</div></div>
+        <div class="iter-step hook"><div class="num">H</div><div class="body"><strong>hook.after_iteration(ctx)</strong><div class="hint">_LoopHook 在这写 ContextMetrics + ctx_loss 检测</div></div><div class="tag">hook</div></div>
+        <div style="text-align:center;color:var(--green);margin-top:6px;font-size:12px">继续下一轮 ↻</div>
+      </div>
+
+      <div class="branch final">
+        <div class="branch-title">分支 B · 直接回答 <span class="cond">else (no tool_calls)</span></div>
+        <div class="iter-step"><div class="num">4b</div><div class="body"><strong>final_content = response.content</strong></div></div>
+        <div class="iter-step"><div class="num">5b</div><div class="body"><strong>hook.finalize_content(ctx, content)</strong> · strip_think 等后处理</div><div class="tag">hook</div></div>
+        <div class="iter-step hook"><div class="num">H</div><div class="body"><strong>hook.after_iteration(ctx)</strong> + checkpoint "completed"</div><div class="tag">hook</div></div>
+        <div style="text-align:center;color:var(--blue);margin-top:6px;font-size:12px">break — 跳出循环</div>
+      </div>
+
+      <div class="branch error">
+        <div class="branch-title">分支 C · 异常 <span class="cond">on error / max_iter</span></div>
+        <div class="iter-step"><div class="num">!</div><div class="body"><strong>stop_reason = "max_iterations" / "error"</strong> · 兜底文案返回</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>max_iterations 兜底：</strong> 防 LLM 自循环死调工具。一旦达到上限，发兜底文案给用户："我尝试了 N 轮但还没解决，请你帮我看看…" —— 比静默挂掉好。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">4</span>Hooks · 6 个生命周期挂载点</h2>
+
+  <p><code>AgentHook</code> 是空的基类，子类实现想关心的方法。<code>_LoopHookChain</code> 把主 hook 和外部传入的 extra_hooks 串起来。所有 hook 调用都有<strong>异常隔离</strong>：一个 hook 抛错不会挂掉整个 loop。</p>
+
+  <div class="hooks-table">
+    <div class="hrow head"><div>Hook</div><div>用途</div><div>何时调用</div></div>
+    <div class="hrow"><div class="hk">before_iteration</div><div class="desc">每轮开始；<strong>_LoopHook</strong> 在这记起始时间用于算 TTFT</div><div class="when">iter 开始</div></div>
+    <div class="hrow"><div class="hk">on_stream</div><div class="desc">每个流式 chunk；<strong>_LoopHook</strong> 计算首 chunk → TTFT，转发给 IM 卡片 streaming 显示</div><div class="when">流式中</div></div>
+    <div class="hrow"><div class="hk">on_stream_end</div><div class="desc">流结束。<strong>resuming=True</strong> 说明后面还有 tool 调用（卡片转 "working"）；<strong>False</strong> 说明 final</div><div class="when">流结束</div></div>
+    <div class="hrow"><div class="hk">before_execute_tools</div><div class="desc">工具执行前；<strong>_LoopHook</strong> 把 thought + tool_hint 发到 IM 卡片（"我在调 web_search…"）</div><div class="when">解析出 tool_calls 后</div></div>
+    <div class="hrow"><div class="hk">after_iteration</div><div class="desc">每轮结束；<strong>_LoopHook</strong> 记录 ContextMetrics（TTFT/tokens/tool_calls）+ ctx_loss 检测</div><div class="when">iter 结束</div></div>
+    <div class="hrow"><div class="hk">finalize_content</div><div class="desc">最终内容处理 pipeline；<strong>_LoopHook</strong> 在这去掉 <code>&lt;think&gt;</code> 块；<strong>无异常隔离</strong>（bug 要暴露）</div><div class="when">最后</div></div>
+  </div>
+
+  <div class="callout">
+    <strong>设计巧思 · finalize_content 故意不做异常隔离：</strong> 其他 hook 失败不能挂 loop（log 一下继续），但 finalize 是最终输出的把关，里面 bug 必须让人看到。这种"差异化容错"贯穿整个框架。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">5</span>工具注册 · 默认 12 件套</h2>
+
+  <p>AgentLoop 实例化时 <code>_register_default_tools()</code> 注册全套基础工具。每个 fleet agent 都拿到同一套底盘工具，再根据 config / skills 加自己的。</p>
+
+  <div class="tool-group">
+    <div class="tg-label">文件系统（始终启用）</div>
+    <div class="chips">
+      <div class="chip">ReadFileTool</div>
+      <div class="chip">WriteFileTool</div>
+      <div class="chip">EditFileTool</div>
+      <div class="chip">ListDirTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">搜索（始终启用）</div>
+    <div class="chips">
+      <div class="chip">GlobTool</div>
+      <div class="chip">GrepTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">Shell · 可选（exec_config.enable）</div>
+    <div class="chips">
+      <div class="chip optional">ExecTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">Web · 可选（web_config.enable）</div>
+    <div class="chips">
+      <div class="chip optional">WebSearchTool</div>
+      <div class="chip optional">WebFetchTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">Bus / Channel</div>
+    <div class="chips">
+      <div class="chip lark">MessageTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">Sub-agent</div>
+    <div class="chips">
+      <div class="chip subagent">SpawnTool</div>
+      <div class="chip subagent">QuickSubagentTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">Cron · 可选（cron_service 存在）</div>
+    <div class="chips">
+      <div class="chip optional">CronTool</div>
+    </div>
+  </div>
+
+  <div class="tool-group">
+    <div class="tg-label">MCP · lazy 连接</div>
+    <div class="chips">
+      <div class="chip optional">_connect_mcp()</div>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <strong>Spawn vs QuickSubagent 的区别：</strong> Spawn 跑完整的子 agent（带 tools/hooks），适合复杂子任务；QuickSubagent 只调一次 LLM 不带工具，适合"快速问一下小模型"（比如分类、抽实体）。
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">6</span>Checkpoint · 容器挂了能续</h2>
+
+  <p>每轮关键点都打 checkpoint，存到 session 里。容器重启时 SessionManager 加载 session，从 checkpoint 继续 —— 长时间 agent 任务（比如 7 步 autopilot）才不会从头来过。</p>
+
+  <div class="ckpt-flow">
+    <div class="ckpt-row">
+      <div class="ckpt-phase">awaiting_tools</div>
+      <div class="ckpt-desc">LLM 给出 tool_calls 但还没执行 · 存 assistant_message + pending_tool_calls<br><span style="color:var(--muted);font-size:11px">→ 重启时知道"上次 LLM 想调什么工具"，可以重跑工具或者跳过</span></div>
+    </div>
+    <div class="ckpt-row">
+      <div class="ckpt-phase">post_tools</div>
+      <div class="ckpt-desc">工具执行完，准备下一轮 · 存 completed_tool_results<br><span style="color:var(--muted);font-size:11px">→ 重启时直接进入下一轮 LLM 调用，不重跑工具</span></div>
+    </div>
+    <div class="ckpt-row">
+      <div class="ckpt-phase">completed</div>
+      <div class="ckpt-desc">final_content 已生成 · 写入 session<br><span style="color:var(--muted);font-size:11px">→ 重启发现是 completed，直接返回结果</span></div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">7</span>并发 · 一个进程最多跑几个会话</h2>
+
+  <p>一个 nanobot 容器进程内有可能同时被多个 chat_id 请求。靠 Semaphore 控制总并发：</p>
+
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <div style="background:var(--accent-dim);border:1px solid var(--accent);color:var(--accent);font-family:'SF Mono',monospace;padding:10px 16px;border-radius:6px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:2px">env var</div>
+        <div>NANOBOT_MAX_CONCURRENT_REQUESTS = 8</div>
+      </div>
+      <div style="color:var(--muted)">→</div>
+      <div style="background:var(--card-2);padding:10px 16px;border-radius:6px;font-family:'SF Mono',monospace;font-size:12.5px">
+        asyncio.Semaphore(8)
+      </div>
+      <div style="color:var(--muted)">→</div>
+      <div style="color:var(--text)">第 9 个会话排队等</div>
+    </div>
+    <div style="margin-top:12px;color:var(--muted);font-size:12.5px">
+      &lt;=0 表示<strong style="color:var(--text)">不限</strong>。Athena 默认 8，但内部代码里也见过 3 这种保守值。这层 gate 是为了别让一个 LLM 慢请求堵住整个 nanobot。
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <h2 class="section"><span class="num">8</span>实测：agent-primary 容器内长啥样</h2>
+
+  <div class="evidence">
+$ docker exec agent-primary pip show nanobot-ai<br>
+&nbsp;Name: nanobot-ai<br>
+&nbsp;Version: 0.1.5.post1<br>
+&nbsp;Location: /usr/local/lib/python3.11/site-packages<br>
+&nbsp;Requires: anthropic, httpx, lark-oapi, loguru, mcp, openai, tiktoken, ...
+  </div>
+
+  <p>容器里 nanobot 是 pip 安装的 <strong>v0.1.5.post1 the company fork</strong>，不是 editable 装的 — 这意味着<strong>改仓库的 nanobot/ 源码不会立即生效</strong>，需要重新发包 + 重建镜像。但是 auto-agent/ 仓库代码（业务层）是直接 mount 进容器的，改了重启就生效。</p>
+
+  <div class="callout warn">
+    <strong>已知风险（CLAUDE.md 列出的）：</strong> nanobot-ai PyPI 包<strong>没有 pin 版本</strong>，上游有变更可能静默挂掉。重建镜像前最好先 <code>pip freeze | grep nanobot</code> 锁定版本。
+  </div>
+
+  <div class="footer">
+    源码 · <code style="background:transparent;color:var(--muted)">auto-agent/nanobot/agent/{loop.py, runner.py, hook.py, context.py}</code><br>
+    线上 · agent-primary 容器 (Agent EC2 <EC2-A>) · nanobot-ai 0.1.5.post1 · 2026-05-13
+  </div>
+
+</div>
+</body>
+</html>
