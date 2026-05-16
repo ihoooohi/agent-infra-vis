@@ -344,14 +344,24 @@
   // 可视化条目清单 · 加新的就在这里加一条
   // ============================================================
   const entries = [
-    // ========== 架构推演 / 移植设计 ==========
+    // ========== 系统调查 / 服务端实测 ==========
     {
-      file: "2026-05-16_hermes-to-athena-port.html",
+      file: "2026-05-16_vio-video-review.html",
       date: "2026-05-16",
-      title: "把 Hermes 移植到 Athena · 文章解读 + 现场调查 + 可行方案",
-      desc: "读原文 + 翻 Athena 仓库给出「小工作量优先」的移植路径 · 关键反转：原文是反方向论证（团队版=另一个产品），可借用的只有作者点名的三块「与存储无关的核心」· 最大金矿：Athena 的 Dream/Consolidator 子系统代码完整但 fleet 启动路径漏接 cron 注册 · S/M/L 三档方案 + 各档涉及文件清单 + 4 个 risk 警告 · 最小有效移植≈1 PR / 不到 100 行。",
+      title: "Cetus 视频自动质检 · 功能与数据流（讲清是什么、怎么流）",
+      desc: "Cetus 视频审核系统的<strong>功能视角</strong>讲解 · 不堆代码细节，全部用业务比喻：派单员、传话筒、规则手册、屏幕识字员、视频理解大脑、回单台、展示窗 · 一条视频的完整旅程 5 步走（翻规则 → 下载 → 两只眼睛并行看 → 大脑逐条判 → 回单两次写回）· 双轨制对比（新审核员 vs 老审核员）· 数据形态变化（视频文件 → 待审凭据 → 审核中 → 内部报告 → 完整凭据 + 时间线评语）· 6 大设计原则（品牌隔离 / 失败要可见 / 不重不漏 / 验签 / 规则热改 / 老版兼容）· 4 个演进事件复盘（业务后果视角，无代码）。",
       category: "architecture",
-      tags: [{text:"架构推演",color:"cyan"},{text:"Hermes",color:"blue"},{text:"Dream",color:"purple"},{text:"小工作量优先",color:"green"}]
+      tags: [{text:"功能视角",color:"green"},{text:"Vio",color:"blue"},{text:"video-review",color:"purple"},{text:"数据流",color:"cyan"},{text:"业务比喻",color:"orange"}]
+    },
+
+    // ========== 架构推演 / 蓝图审视 ==========
+    {
+      file: "2026-05-16_athena-team-blueprint-audit.html",
+      date: "2026-05-16",
+      title: "按团队助理蓝图改造 Athena · 原文 audit + 改造路径",
+      desc: "用原文给出的「团队助理 18 件必备」反向审视 Athena · 同坐标 5 层架构对照图 + 完整 audit 矩阵 · 分布：✓5 已达标 / ≈8 凑合 / ✗2 真缺 / 不需要 3 · S/M/L 三档决策树 · 最小改造（接通自演化 + 秘密管理 + 审计表）≈ 2 工时 1 PR · 配 7 张 SVG 关系图。",
+      category: "architecture",
+      tags: [{text:"架构推演",color:"cyan"},{text:"团队助理",color:"blue"},{text:"audit",color:"purple"},{text:"改造路径",color:"green"}]
     },
 
     // ========== 项目复盘 / 简历向 ==========
@@ -388,49 +398,49 @@
       file: "2026-05-13_observability.html",
       date: "2026-05-13",
       title: "10 · 监控与可观测性",
-      desc: "OTEL → Jaeger 三层 span 树（agent-turn / think-iteration / tool）· context_metrics.jsonl 5 种事件 · 最有创意：ctx_loss 检测用正则抓 agent 自己说漏的「我看不到」措辞 · UsageMeter cache 命中分价 · Prefect 聚合 → IM platform cost 日报。",
+      desc: "OTEL → Jaeger 三层 span 树（agent-turn / think-iteration / tool）· context_metrics.jsonl 5 种事件 · 最有创意：ctx_loss 检测用正则抓 agent 自己说漏的「我看不到」措辞 · UsageMeter cache 命中分价 · Prefect 聚合 → IM cost 日报。",
       tags: [{text:"可观测",color:"green"},{text:"OTEL",color:"blue"},{text:"ctx_loss",color:"pink"},{text:"agent infra",color:"orange"}]
     },
     {
-      file: "2026-05-13_cetus-multi-tenant.html",
+      file: "2026-05-13_vio-multi-tenant.html",
       date: "2026-05-13",
       title: "09 · Cetus 多租户基础设施",
-      desc: "22 家外部客户共用一台 EC2 · tenant-gateway 是 thin HTTP router · DB SSOT + 30s routeCache · hash(tenant:agent)%200+18800 确定性端口 · JuiceFS 持久化 + S3 backend · 一行 deploy-agent.sh 加新租户 · Cloudflare Tunnel + 6 表 schema · vs Agent fleet 对比。",
-      tags: [{text:"Cetus",color:"blue"},{text:"多租户",color:"orange"},{text:"基础设施",color:"green"},{text:"agent infra",color:"orange"}]
+      desc: "22 家外部客户共用一台 EC2 · vio-gateway 是 thin HTTP router · DB SSOT + 30s routeCache · hash(tenant:agent)%200+18800 确定性端口 · JuiceFS 持久化 + S3 backend · 一行 deploy-agent.sh 加新租户 · Cloudflare Tunnel + 6 表 schema · vs Athena fleet 对比。",
+      tags: [{text:"Vio",color:"blue"},{text:"多租户",color:"orange"},{text:"基础设施",color:"green"},{text:"agent infra",color:"orange"}]
     },
     {
       file: "2026-05-13_fleet-deployment.html",
       date: "2026-05-13",
       title: "08 · Fleet 部署架构",
-      desc: "一份镜像 the-platform/nanobot-agent · 13 个独立人格分身 · nanobot-fleet.json 是 ground truth · port_offset=100 · 三层 override（defaults / per-bot / runtime skin）· 共享 workspace + 隔离 identity · 特殊案例：skin-01 用 codex GPT-5.5、fin-bot stays on OpenClaw · 实测 13 容器全 healthy。",
+      desc: "一份镜像 vizzy/nanobot-agent · 13 个独立人格分身 · nanobot-fleet.json 是 ground truth · port_offset=100 · 三层 override（defaults / per-bot / runtime skin）· 共享 workspace + 隔离 identity · 特殊案例：skin-01 用 codex GPT-5.5、skin-fin stays on OpenClaw · 实测 13 容器全 healthy。",
       tags: [{text:"Fleet",color:"pink"},{text:"部署",color:"blue"},{text:"nanobot",color:"green"},{text:"agent infra",color:"orange"}]
     },
     {
       file: "2026-05-13_autopilot-7steps.html",
       date: "2026-05-13",
       title: "07 · Auto-Pilot 7 步工作流",
-      desc: "Athena 主业：每日 TikTok 红人活动管理 · 7 步从 Campaign Performance → Daily Report · Step 3/4 人工 IM platform 确认（CUT/COACH/KEEP）· Mode A/B 预算注入模式 · 用户 reject 触发 reflection 沉淀进 memory · 严格搜索顺序（内部 pool → 44M DB → 跨 campaign → 外部 scraper）· 编号坑：step_id=2 实际是 Step 3/7。",
+      desc: "Athena 主业：每日 TikTok 红人活动管理 · 7 步从 Campaign Performance → Daily Report · Step 3/4 人工 IM 确认（CUT/COACH/KEEP）· Mode A/B 预算注入模式 · 用户 reject 触发 reflection 沉淀进 memory · 严格搜索顺序（内部 pool → 44M DB → 跨 campaign → 外部 scraper）· 编号坑：step_id=2 实际是 Step 3/7。",
       tags: [{text:"Auto-Pilot",color:"orange"},{text:"workflow",color:"purple"},{text:"campaign",color:"blue"},{text:"agent infra",color:"orange"}]
     },
     {
       file: "2026-05-13_hatchet-durable.html",
       date: "2026-05-13",
       title: "06 · Hatchet Durable Task",
-      desc: "为啥 Athena 跑 30 分钟、用户离线 8 小时回来按钮还能点 · execution_timeout=60m · 关键模式：固定 event type + CEL filter（动态 key 会丢消息）· 双源读（module cache + WorkflowState JSON）· async 边界可能跨进程 · 4 种 human action（confirm/reject/cancel/skip）· terminal state 推送可靠送达。",
+      desc: "为啥 athena 跑 30 分钟、用户离线 8 小时回来按钮还能点 · execution_timeout=60m · 关键模式：固定 event type + CEL filter（动态 key 会丢消息）· 双源读（module cache + WorkflowState JSON）· async 边界可能跨进程 · 4 种 human action（confirm/reject/cancel/skip）· terminal state 推送可靠送达。",
       tags: [{text:"Hatchet",color:"purple"},{text:"durable",color:"pink"},{text:"workflow",color:"blue"},{text:"agent infra",color:"orange"}]
     },
     {
       file: "2026-05-13_lark-integration.html",
       date: "2026-05-13",
-      title: "05 · IM platform 接入 + 卡片生命周期",
+      title: "05 · IM 接入 + 卡片生命周期",
       desc: "lark/ 13 文件 3715 行 · 5 个卡片状态（thinking/working/final/stopped/error）· 同卡片反复 PATCH 造「实时打字感」· _active_cards trace_id→card_id 内存映射 · 关键反转：CLAUDE.md 说的 card_lifecycle.py SQLite 已被移除，现在纯内存 + shutdown drain · ToolTracker 渲染「我在调 X」· 双触发（IM @ + 文档评论）。",
-      tags: [{text:"IM platform",color:"blue"},{text:"卡片",color:"green"},{text:"接入",color:"pink"},{text:"agent infra",color:"orange"}]
+      tags: [{text:"IM",color:"blue"},{text:"卡片",color:"green"},{text:"接入",color:"pink"},{text:"agent infra",color:"orange"}]
     },
     {
       file: "2026-05-13_difficulty-routing.html",
       date: "2026-05-13",
       title: "04 · 难度路由 + 模型分级",
-      desc: "为啥 Athena 一天烧不爆 · 3 层路由：硬规则 → Bedrock Nova Micro 判官（$0.000007/call）→ V1 regex 兜底 · 5 类 GREETING/SIMPLE/CREATIVE/CODING/ANALYSIS · 难度 1-3 → Sonnet · 4-5 → Opus · 命名坑：gemini_judge.py 实际用 Nova Micro · CJK 加权评分 · contextvar 注入模型不污染全局。",
+      desc: "为啥 athena 一天烧不爆 · 3 层路由：硬规则 → Bedrock Nova Micro 判官（$0.000007/call）→ V1 regex 兜底 · 5 类 GREETING/SIMPLE/CREATIVE/CODING/ANALYSIS · 难度 1-3 → Sonnet · 4-5 → Opus · 命名坑：gemini_judge.py 实际用 Nova Micro · CJK 加权评分 · contextvar 注入模型不污染全局。",
       tags: [{text:"路由",color:"orange"},{text:"省钱",color:"green"},{text:"Bedrock",color:"blue"},{text:"agent infra",color:"orange"}]
     },
     {
@@ -451,7 +461,7 @@
       file: "2026-05-13_agent-loop-core.html",
       date: "2026-05-13",
       title: "01 · Agent Loop 核心循环",
-      desc: "nanobot-ai PyPI 包 v0.1.5.post1 · 三层套娃：docker → auto-agent 业务 → nanobot 框架 · AgentLoop 持有 11 大组件 · iteration 循环 = LLM → tool_use → 工具并发 → checkpoint → 下轮 · 6 hooks 异常隔离（finalize_content 故意不隔离）· 12 默认工具 · NANOBOT_MAX_CONCURRENT_REQUESTS=8 信号量。",
+      desc: "nanobot-ai PyPI 包 v0.1.5.post1 · 三层套娃：docker → agent 业务 → nanobot 框架 · AgentLoop 持有 11 大组件 · iteration 循环 = LLM → tool_use → 工具并发 → checkpoint → 下轮 · 6 hooks 异常隔离（finalize_content 故意不隔离）· 12 默认工具 · NANOBOT_MAX_CONCURRENT_REQUESTS=8 信号量。",
       tags: [{text:"Agent Loop",color:"orange"},{text:"nanobot",color:"blue"},{text:"循环",color:"green"},{text:"agent infra",color:"orange"}]
     },
 
@@ -460,7 +470,7 @@
       file: "2026-05-13_athena-architecture-deep.html",
       date: "2026-05-13",
       title: "Athena 架构深扒 · 高频内部 bot 总览",
-      desc: "Athena 是 TikTok 红人营销活动的 AI 经理。包含：一条消息走过的路（含 Hatchet durable task 保证不丢）· 难度路由 3 层（Sonnet vs Opus 决策）· Agent Loop 内部 + 工具集 + Skills · 7 步每日 Auto-Pilot（Step 3/4 需 IM platform 按钮确认）· 5 类存储分层 · Fleet 13 agents · 已知脆弱点 5 项。",
+      desc: "Athena 是 TikTok 红人营销活动的 AI 经理。包含：一条消息走过的路（含 Hatchet durable task 保证不丢）· 难度路由 3 层（Sonnet vs Opus 决策）· Agent Loop 内部 + 工具集 + Skills · 7 步每日 Auto-Pilot（Step 3/4 需 IM 按钮确认）· 5 类存储分层 · Fleet 13 agents · 已知脆弱点 5 项。",
       tags: [
         { text: "Athena", color: "orange" },
         { text: "总览", color: "pink" },
@@ -469,15 +479,15 @@
       ]
     },
     {
-      file: "2026-05-13_the-company-agent-architecture.html",
+      file: "2026-05-13_vispie-agent-architecture.html",
       date: "2026-05-13",
-      title: "the company Agent 平台 · 功能模块图",
-      desc: "the company 把 AI 塞进 IM platform 群当团队成员。Athena 系列服务内部团队（多 bot 分身），Cetus 把同套能力做成 SaaS 卖给外部客户（多租户）。包含功能模块图 + 双容器协作（gateway × nanobot）+ Athena/Cetus 拓扑对照 + 一次对话流程 + 关键特性。",
+      title: "The Platform Agent 平台 · 功能模块图",
+      desc: "The Platform 把 AI 塞进 IM 群当团队成员。Athena 系列服务内部团队（多 bot 分身），Cetus 把同套能力做成 SaaS 卖给外部客户（多租户）。包含功能模块图 + 双容器协作（gateway × nanobot）+ Athena/Cetus 拓扑对照 + 一次对话流程 + 关键特性。",
       tags: [
         { text: "功能视角", color: "orange" },
         { text: "模块图", color: "blue" },
         { text: "agent", color: "green" },
-        { text: "the company", color: "purple" }
+        { text: "The Platform", color: "purple" }
       ]
     }
     // 加新条目时按时间倒序放在最上面
