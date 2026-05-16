@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>把 Hermes 移植到 Athena · 文章+现场调查+可行方案</title>
+<title>把 Hermes 移植到 Athena · 流程示意版</title>
 <style>
   :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
   *{box-sizing:border-box}
@@ -17,21 +17,14 @@
   .topbar .tag-cat{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:3px 8px;border-radius:3px;letter-spacing:.08em;font-weight:600;background:var(--cyan-dim);color:var(--cyan);margin-left:auto}
   .container{max-width:1100px;margin:0 auto;padding:40px 28px 80px}
   .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
-  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
-  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
-  .lead strong{color:var(--accent);font-weight:600}
-  .lead em{color:var(--cyan);font-style:normal}
-  p{margin:8px 0 14px}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
   code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
   a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue)}
   a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  p{margin:8px 0 14px}
 
-  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:36px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
-  h2.section .num{width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0;font-family:"SF Mono",Menlo,monospace}
-  h3{font-size:17px;font-weight:600;margin:22px 0 10px;color:var(--text)}
-  h4{font-size:14px;font-weight:600;margin:14px 0 8px;color:var(--text)}
-
-  .part{margin:56px -28px 22px;padding:28px 28px 18px;border-top:1px solid var(--border);position:relative}
+  /* Part header */
+  .part{margin:48px -28px 18px;padding:24px 28px 14px;border-top:1px solid var(--border);position:relative}
   .part.p1{background:linear-gradient(180deg,var(--blue-dim) 0,transparent 100%);border-top:3px solid var(--blue)}
   .part.p2{background:linear-gradient(180deg,var(--accent-dim) 0,transparent 100%);border-top:3px solid var(--accent)}
   .part.p3{background:linear-gradient(180deg,var(--purple-dim) 0,transparent 100%);border-top:3px solid var(--purple)}
@@ -43,7 +36,7 @@
   .part.p3 .pno{background:var(--purple);color:var(--bg)}
   .part.p4 .pno{background:var(--cyan);color:var(--bg)}
   .part.p5 .pno{background:var(--pink);color:var(--bg)}
-  .part h1.ptitle{font-size:26px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
+  .part h1.ptitle{font-size:24px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
   .part.p1 h1.ptitle{color:var(--blue)}
   .part.p2 h1.ptitle{color:var(--accent)}
   .part.p3 h1.ptitle{color:var(--purple)}
@@ -51,90 +44,96 @@
   .part.p5 h1.ptitle{color:var(--pink)}
   .part .ptag{color:var(--muted);font-size:13px}
 
-  .highlight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0 6px}
-  .hl{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;border-top:3px solid var(--accent)}
-  .hl .num{font-family:"SF Mono",Menlo,monospace;color:var(--accent);font-size:22px;font-weight:700;line-height:1}
-  .hl .lbl{color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
-  .hl .desc{font-size:12.5px;color:var(--text);margin-top:6px;line-height:1.5}
-  .hl.blue{border-top-color:var(--blue)} .hl.blue .num{color:var(--blue)}
-  .hl.green{border-top-color:var(--green)} .hl.green .num{color:var(--green)}
-  .hl.purple{border-top-color:var(--purple)} .hl.purple .num{color:var(--purple)}
-  .hl.pink{border-top-color:var(--pink)} .hl.pink .num{color:var(--pink)}
-  .hl.cyan{border-top-color:var(--cyan)} .hl.cyan .num{color:var(--cyan)}
+  /* Lead */
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:14px 18px;margin:10px 0 22px;font-size:14.5px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  .lead em{color:var(--cyan);font-style:normal}
 
-  /* compare grid */
-  .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 18px}
-  .vs .col{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 18px}
-  .vs .col.l{border-left:3px solid var(--blue)}
-  .vs .col.r{border-left:3px solid var(--accent)}
-  .vs .col h4{margin:0 0 8px;font-size:13.5px}
-  .vs .col h4 .ttag{font-family:"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.08em;padding:2px 6px;border-radius:3px;margin-left:6px;font-weight:600}
-  .vs .col.l h4 .ttag{background:var(--blue-dim);color:var(--blue)}
-  .vs .col.r h4 .ttag{background:var(--accent-dim);color:var(--accent)}
-  .vs ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--text);line-height:1.65}
-  .vs li{margin-bottom:3px}
-  .vs li code{font-size:11.5px}
+  /* Figure container */
+  .fig{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:14px 0 18px}
+  .fig .caption{color:var(--muted);font-size:12px;text-align:center;margin-top:8px;font-style:italic}
+  .fig .fig-title{font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;border-bottom:1px dashed var(--border);padding-bottom:8px}
+  svg{display:block;margin:0 auto;max-width:100%;height:auto}
 
-  /* table */
-  table{width:100%;border-collapse:collapse;margin:12px 0 16px;font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-  thead{background:var(--card-2)}
-  th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
-  th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
-  tr:last-child td{border-bottom:0}
-  td.s-yes{color:var(--green);font-weight:600}
-  td.s-part{color:var(--yellow);font-weight:600}
-  td.s-no{color:var(--red);font-weight:600}
-  td.s-na{color:var(--muted);font-weight:600}
-  .pill{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:2px 7px;border-radius:3px;letter-spacing:.04em;font-weight:600}
-  .pill.green{background:var(--green-dim);color:var(--green)}
-  .pill.yellow{background:var(--yellow-dim);color:var(--yellow)}
-  .pill.red{background:var(--red-dim);color:var(--red)}
-  .pill.blue{background:var(--blue-dim);color:var(--blue)}
-  .pill.muted{background:var(--card-2);color:var(--muted)}
+  /* SVG defaults */
+  svg .node{fill:var(--card-2);stroke:var(--border-strong);stroke-width:1.5}
+  svg .node-text{fill:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:12px;font-weight:500;text-anchor:middle;dominant-baseline:middle}
+  svg .node-sub{fill:var(--muted);font-family:"SF Mono",Menlo,monospace;font-size:9.5px;text-anchor:middle}
+  svg .edge{stroke:var(--border-strong);stroke-width:1.5;fill:none}
+  svg .edge-text{fill:var(--muted);font-family:-apple-system,system-ui;font-size:10.5px;text-anchor:middle}
+  svg .edge.dashed{stroke-dasharray:5,4}
+  svg .edge.thick{stroke-width:2.5}
+  svg .ok{stroke:var(--green)}
+  svg .ok-fill{fill:var(--green-dim);stroke:var(--green);stroke-width:1.5}
+  svg .warn{stroke:var(--yellow)}
+  svg .warn-fill{fill:var(--yellow-dim);stroke:var(--yellow);stroke-width:1.5}
+  svg .bad{stroke:var(--red)}
+  svg .bad-fill{fill:var(--red-dim);stroke:var(--red);stroke-width:1.5}
+  svg .info-fill{fill:var(--blue-dim);stroke:var(--blue);stroke-width:1.5}
+  svg .accent-fill{fill:var(--accent-dim);stroke:var(--accent);stroke-width:1.5}
+  svg .purple-fill{fill:var(--purple-dim);stroke:var(--purple);stroke-width:1.5}
+  svg .cyan-fill{fill:var(--cyan-dim);stroke:var(--cyan);stroke-width:1.5}
+  svg .group{fill:none;stroke:var(--border);stroke-width:1;stroke-dasharray:3,3;rx:8}
+  svg .label-strong{fill:var(--text);font-weight:600;font-size:12.5px;text-anchor:middle}
+  svg .pill-bg{fill:var(--card-3)}
+  svg .tag-ok{fill:var(--green)}
+  svg .tag-warn{fill:var(--yellow)}
+  svg .tag-bad{fill:var(--red)}
 
-  /* finding box */
-  .finding{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--purple);border-radius:6px;padding:16px 20px;margin:14px 0}
-  .finding .hdr{color:var(--purple);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
-  .finding strong{color:var(--accent)}
-  .finding code{background:var(--card-3)}
+  /* TL;DR cards */
+  .tldr{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0 8px}
+  .tldr .tc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-top:3px solid var(--accent);display:flex;gap:12px;align-items:flex-start}
+  .tldr .tc .ico{font-size:22px;line-height:1;flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:var(--card-2);border-radius:8px;font-weight:700;font-family:"SF Mono",Menlo,monospace;color:var(--accent)}
+  .tldr .tc .body .ttl{font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--text)}
+  .tldr .tc .body .txt{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .tldr .tc.blue{border-top-color:var(--blue)} .tldr .tc.blue .ico{color:var(--blue)}
+  .tldr .tc.green{border-top-color:var(--green)} .tldr .tc.green .ico{color:var(--green)}
+  .tldr .tc.purple{border-top-color:var(--purple)} .tldr .tc.purple .ico{color:var(--purple)}
+  .tldr .tc.cyan{border-top-color:var(--cyan)} .tldr .tc.cyan .ico{color:var(--cyan)}
 
-  /* tier card */
-  .tier{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:14px;border-top:3px solid var(--green)}
+  /* Tier cards (Part 4) */
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+  .tier{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-top:3px solid var(--green);position:relative;display:flex;flex-direction:column;gap:6px}
   .tier.t-m{border-top-color:var(--yellow)}
   .tier.t-l{border-top-color:var(--red)}
-  .tier .badge{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 10px;border-radius:4px;font-weight:700;background:var(--green-dim);color:var(--green);letter-spacing:.05em}
+  .tier .badge{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:2px 8px;border-radius:4px;font-weight:700;background:var(--green-dim);color:var(--green);letter-spacing:.05em;align-self:flex-start}
   .tier.t-m .badge{background:var(--yellow-dim);color:var(--yellow)}
   .tier.t-l .badge{background:var(--red-dim);color:var(--red)}
-  .tier .ttitle{font-size:17px;font-weight:600;margin:6px 0 2px}
-  .tier .tsubtitle{color:var(--muted);font-size:12.5px;margin-bottom:10px}
-  .tier .tcost{font-family:"SF Mono",Menlo,monospace;font-size:11.5px;color:var(--muted);margin-left:10px}
-  .tier .tbody{font-size:13.5px;line-height:1.65}
-  .tier .tbody ul{padding-left:18px;margin:6px 0}
-  .tier .tbody code{font-size:11.5px}
-  .tier .filelist{background:var(--card-2);border-radius:6px;padding:10px 14px;margin-top:8px;font-family:"SF Mono",Menlo,monospace;font-size:11.5px;color:var(--muted);line-height:1.7}
-  .tier .filelist .fl{color:var(--blue)}
-  .tier .filelist .add{color:var(--green)}
-  .tier .filelist .mod{color:var(--yellow)}
+  .tier .ttitle{font-weight:600;font-size:14px;line-height:1.35}
+  .tier .meta{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted)}
+  .tier .summary{font-size:12.5px;color:var(--text);line-height:1.55}
+  .tier .files{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+  .tier .files .f{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:2px 7px;border-radius:3px;background:var(--card-2);color:var(--blue)}
+  .tier .files .f.add{color:var(--green);background:var(--green-dim)}
+  .tier .files .f.mod{color:var(--yellow);background:var(--yellow-dim)}
 
-  /* risk box */
-  .risk{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:6px;padding:14px 18px;margin:10px 0}
-  .risk .rh{color:var(--red);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
-  .risk strong{color:var(--accent)}
+  /* Risk callouts */
+  .risks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0}
+  .risk{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:6px;padding:12px 16px}
+  .risk .rh{display:flex;align-items:center;gap:8px;color:var(--red);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+  .risk .ri{width:22px;height:22px;border-radius:50%;background:var(--red-dim);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .risk .rb{font-size:12.8px;color:var(--text);line-height:1.55}
+  .risk .rb strong{color:var(--accent)}
 
-  /* footer / refs */
+  /* refs */
   .refs{margin-top:30px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 22px}
   .refs h3{margin:0 0 10px;font-size:14px}
   .refs ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
   .refs code{font-size:11.5px}
 
-  blockquote{border-left:3px solid var(--muted);margin:10px 0;padding:6px 16px;color:var(--muted);font-size:13.5px;font-style:italic;background:var(--card-2);border-radius:0 4px 4px 0}
+  /* tiny inline tags */
+  .tag{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:1px 6px;border-radius:3px;font-weight:600;letter-spacing:.05em}
+  .tag.ok{background:var(--green-dim);color:var(--green)}
+  .tag.warn{background:var(--yellow-dim);color:var(--yellow)}
+  .tag.bad{background:var(--red-dim);color:var(--red)}
+  .tag.info{background:var(--blue-dim);color:var(--blue)}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <a href="index.html">← 回到 gallery</a>
-  <span class="title">把 Hermes 移植到 Athena ·<strong>文章解读 + 现场调查 + 移植方案</strong></span>
+  <span class="title">把 Hermes 移植到 Athena ·<strong>流程示意版</strong></span>
   <span class="tag-cat">架构推演</span>
 </div>
 
@@ -142,380 +141,699 @@
 
   <div class="hero">
     <h1>把 Hermes 移植到 Athena</h1>
-    <div class="sub">读完原文 + 翻完 Athena 代码，给出"小工作量优先"的可行路径 · 2026-05-16</div>
+    <div class="sub">读原文 + 翻 Athena 仓库 · 用关系图说清"该搬什么 / 已经有什么 / 还差哪一步" · 2026-05-16</div>
   </div>
 
-  <div class="lead">
-    一句话：原文是<strong>反方向</strong>的——作者讲的是"如果 Hermes（单机个人助理）要做团队版，底座要全换"。但 <em>Athena 已经是团队版</em>，所以"移植"问题其实是：<strong>Hermes 文章里点名"与存储无关、可复用的设计"</strong>（prompt 工程三件套、技能系统、curator/GEPA 自演化），在 Athena 上对应的是什么？我们查到的最大发现是——<strong>Athena 自带的 Dream/Consolidator 子系统（=Hermes 的 curator）代码完整，但 fleet 启动路径漏接了 cron 注册</strong>。最低成本"移植"是把这段连线接好，再补几个 Hermes 没写但思路可借的细节。
+  <!-- HERO MAP — overall story in one figure -->
+  <div class="fig">
+    <div class="fig-title">一张图看完整个论证</div>
+    <svg viewBox="0 0 1000 320" width="1000" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="arrA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#7d8590"/>
+        </marker>
+        <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#3fb950"/>
+        </marker>
+        <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#f85149"/>
+        </marker>
+      </defs>
+
+      <!-- 左：Hermes 单机 -->
+      <rect class="info-fill" x="30" y="50" width="220" height="170" rx="10"/>
+      <text class="label-strong" x="140" y="80">Hermes</text>
+      <text class="node-sub" x="140" y="98">单机个人助理</text>
+      <rect class="node" x="55" y="115" width="80" height="32" rx="5"/><text class="node-text" x="95" y="131">SQLite</text>
+      <rect class="node" x="145" y="115" width="80" height="32" rx="5"/><text class="node-text" x="185" y="131">JSONL</text>
+      <rect class="node" x="55" y="155" width="170" height="48" rx="5"/>
+      <text class="node-text" x="140" y="172">SOUL / USER / MEMORY</text>
+      <text class="node-sub" x="140" y="190">skills + curator</text>
+
+      <!-- 中：作者钦点 3 块 -->
+      <rect class="purple-fill" x="350" y="20" width="300" height="280" rx="12"/>
+      <text class="label-strong" x="500" y="48" style="fill:#bc8cff">作者点名的 3 块「与存储无关」</text>
+      <text class="node-sub" x="500" y="64">— 引自原文结尾</text>
+
+      <rect class="node" x="380" y="90" width="240" height="56" rx="6"/>
+      <text class="node-text" x="500" y="110" style="font-weight:600">① Prompt 工程</text>
+      <text class="node-sub" x="500" y="128">SOUL.md / USER.md / MEMORY.md</text>
+
+      <rect class="node" x="380" y="160" width="240" height="56" rx="6"/>
+      <text class="node-text" x="500" y="180" style="font-weight:600">② 技能系统</text>
+      <text class="node-sub" x="500" y="198">skills/&lt;name&gt;/SKILL.md</text>
+
+      <rect class="node" x="380" y="230" width="240" height="56" rx="6"/>
+      <text class="node-text" x="500" y="250" style="font-weight:600">③ curator / GEPA</text>
+      <text class="node-sub" x="500" y="268">自演化 · 定时整理记忆</text>
+
+      <!-- 右：Athena 已有/没接通 -->
+      <rect class="accent-fill" x="750" y="50" width="220" height="170" rx="10"/>
+      <text class="label-strong" x="860" y="80">Athena</text>
+      <text class="node-sub" x="860" y="98">13-bot 团队助理</text>
+      <rect class="node ok-fill" x="775" y="115" width="80" height="32" rx="5"/><text class="node-text" x="815" y="131" style="fill:#3fb950;font-weight:600">① 已有</text>
+      <rect class="node ok-fill" x="865" y="115" width="80" height="32" rx="5"/><text class="node-text" x="905" y="131" style="fill:#3fb950;font-weight:600">② 已有</text>
+      <rect class="node warn-fill" x="775" y="155" width="170" height="48" rx="5"/>
+      <text class="node-text" x="860" y="172" style="fill:#d29922;font-weight:600">③ 代码有，没接通</text>
+      <text class="node-sub" x="860" y="190">cron 注册漏了</text>
+
+      <!-- 箭头 -->
+      <path class="edge" d="M250,135 Q300,135 350,135" marker-end="url(#arrA)"/>
+      <path class="edge" d="M650,135 Q700,135 750,135" marker-end="url(#arrA)"/>
+      <text class="edge-text" x="300" y="125">"团队版可保留"</text>
+      <text class="edge-text" x="700" y="125">"Athena 对应件"</text>
+
+      <!-- 底部结论 -->
+      <rect x="30" y="260" width="940" height="42" rx="6" fill="#1c2230" stroke="#3fb950" stroke-width="1.5"/>
+      <text class="label-strong" x="500" y="285" style="fill:#3fb950">最小有效移植 = 接通第 ③ 块 ≈ 1 PR / 不到 100 行</text>
+    </svg>
+    <div class="caption">原文实际是"如果 Hermes 团队化，底座要全换"，可保留的只有 3 块。Athena 这边 ①② 已经全有，③ 代码完整但 fleet 启动路径没接 cron。</div>
   </div>
 
-  <div class="highlight-grid">
-    <div class="hl blue">
-      <div class="num">1</div>
-      <div class="lbl">原文核心</div>
-      <div class="desc">作者明说团队版不是改配置，是另一个产品。可复用的只是"与存储无关"的核心。</div>
-    </div>
-    <div class="hl green">
-      <div class="num">3</div>
-      <div class="lbl">可移植设计</div>
-      <div class="desc">prompt 三件套（SOUL/USER/MEMORY）、技能系统、curator/GEPA。Athena 三块都有对应件。</div>
-    </div>
-    <div class="hl purple">
-      <div class="num">1</div>
-      <div class="lbl">最大金矿</div>
-      <div class="desc">Athena 的 Dream system job 在 fleet server 里<strong>从未注册</strong>，CLI 启动路径有，<code>nanobot_server.py</code> 没搬过来。</div>
-    </div>
-    <div class="hl cyan">
-      <div class="num">S/M/L</div>
-      <div class="lbl">分档方案</div>
-      <div class="desc">S 档约 50–150 行；M 档 2–3 个 PR；L 档不建议（破坏 Athena 现有共享 workspace 模型）。</div>
-    </div>
+  <div class="tldr">
+    <div class="tc blue"><div class="ico">1</div><div class="body"><div class="ttl">原文是反方向论证</div><div class="txt">"团队版不是加配置，是另一个产品"。可借用的只是与存储无关的核心。</div></div></div>
+    <div class="tc green"><div class="ico">2</div><div class="body"><div class="ttl">Athena 已经覆盖 ①②</div><div class="txt">SOUL/USER/MEMORY 三件套 + skills/ 体系，全都有。</div></div></div>
+    <div class="tc purple"><div class="ico">3</div><div class="body"><div class="ttl">③ 的代码也在</div><div class="txt"><code>Consolidator</code>+<code>Dream</code> 共 600 行已实现，但 fleet 启动时漏注册 cron job。</div></div></div>
+    <div class="tc cyan"><div class="ico">↓</div><div class="body"><div class="ttl">最小修复 1 PR</div><div class="txt">从 CLI 启动路径搬 30 行注册逻辑到 <code>nanobot_server.py</code>，加 leader 选举。</div></div></div>
   </div>
 
   <!-- ============== PART 1 ============== -->
   <div class="part p1">
     <div class="pno">PART 01</div>
-    <h1 class="ptitle">原文究竟在说什么</h1>
-    <div class="ptag">读原文先抓住关键转折，否则会把"反向论证"读成"正向蓝图"。</div>
+    <h1 class="ptitle">原文的"反向论证"</h1>
+    <div class="ptag">必须先抓住这层语境，否则会把"反证"当蓝图。</div>
   </div>
 
-  <p>《<a href="https://ihoooohi.github.io/garden/tech/hermes-team-deployment/" target="_blank">如果 Hermes 给团队用——从 SQLite 到 Postgres 的架构推演</a>》通篇结构是：
-  Hermes <strong>单机版</strong>的所有设计都是为"<em>每个人在自己机器上跑自己的 agent</em>"优化的——SQLite + 本地 JSONL + 单进程；
-  团队化会撞四堵墙（写并发、跨机器、权限隔离、容量），所以底座要换：<code>SQLite→Postgres+RLS</code>、
-  <code>FTS5→Meilisearch/OpenSearch</code>、<code>本地 JSONL→S3 分层</code>、<code>+ Redis 锁/限流</code>、<code>+ Vault 密钥池</code>。</p>
+  <div class="fig">
+    <div class="fig-title">原文的论证流</div>
+    <svg viewBox="0 0 1000 400" width="1000">
+      <!-- top: Hermes single-host -->
+      <rect class="info-fill" x="380" y="20" width="240" height="60" rx="8"/>
+      <text class="label-strong" x="500" y="44">Hermes 单机版</text>
+      <text class="node-sub" x="500" y="62">每人一份 ~/.hermes/ · 零运维</text>
 
-  <p>但作者收尾给了一个关键判断（这是原文最容易被忽略的一句）：</p>
+      <!-- arrow down "扩到团队" -->
+      <path class="edge thick" d="M500,80 L500,110" marker-end="url(#arrA)"/>
+      <text class="edge-text" x="568" y="98">"扩到团队/SaaS"</text>
 
-  <blockquote>所以 Hermes 团队版不会是"加几个配置"，而会是另一个产品——共享 Hermes 的 prompt 工程、技能系统、curator/GEPA 这些与存储无关的核心，但底座完全重建。</blockquote>
+      <!-- 4 walls -->
+      <rect class="bad-fill" x="40" y="125" width="220" height="80" rx="6"/>
+      <text class="node-text" x="150" y="148" style="fill:#f85149;font-weight:600">墙 ①  SQLite 写并发</text>
+      <text class="node-sub" x="150" y="168">10 工程师同写 → SQLITE_BUSY</text>
+      <text class="node-sub" x="150" y="184">cron + curator + subagent 抢锁</text>
 
-  <p>这句话直接决定了"移植"的合法路径：<strong>底座（SQLite/JSONL/Postgres/S3）不需要移植——Athena 已经有自己的多租户底座</strong>（Bedrock + VectorDB pgvector + 共享 workspace + Hatchet 持久任务）。<br>
-  <strong>真正能搬的只有作者自己点名的三块"与存储无关的核心"</strong>。下表是这三块的精确定位：</p>
+      <rect class="bad-fill" x="280" y="125" width="220" height="80" rx="6"/>
+      <text class="node-text" x="390" y="148" style="fill:#f85149;font-weight:600">墙 ②  跨机器死锁</text>
+      <text class="node-sub" x="390" y="168">NFS fcntl 不可靠</text>
+      <text class="node-sub" x="390" y="184">WAL+shm 跨节点损坏</text>
 
-  <table>
-    <thead>
-      <tr><th style="width:18%">原文设计</th><th style="width:46%">Hermes 形态</th><th>对应到 Athena 的位置</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Prompt 工程<br><span class="pill blue">SOUL/USER/MEMORY</span></td>
-        <td><code>~/.hermes/</code> 下三个 Markdown 文件：<code>SOUL.md</code> 人格 / <code>USER.md</code> 用户 profile / <code>MEMORY.md</code> 长期记忆。组合进 system prompt。原文还推演了"团队版应该分 Org/Team/User 三层 SOUL.md"。</td>
-        <td><code>agent/nanobot/agent/memory.py:31</code> <code>MemoryStore</code> 已经按这套结构存：<code>workspace/SOUL.md</code>、<code>USER.md</code>、<code>memory/MEMORY.md</code>。模板：<code>nanobot/templates/memory/MEMORY.md</code>。fleet 共享 workspace 一份。</td>
-      </tr>
-      <tr>
-        <td>技能系统<br><span class="pill blue">skills/</span></td>
-        <td><code>skills/&lt;name&gt;/</code> 下 Markdown + YAML frontmatter，按 trigger 选择性挂载到 system prompt。</td>
-        <td><code>agent/nanobot/skills/</code>：<code>memory</code> / <code>cron</code> / <code>github</code> / <code>system-map</code> / <code>skill-creator</code> / <code>summarize</code> / <code>weather</code> / <code>clawhub</code> / <code>tmux</code>。每个目录有 <code>SKILL.md</code> + frontmatter。</td>
-      </tr>
-      <tr>
-        <td>curator / GEPA<br><span class="pill blue">自演化</span></td>
-        <td>原文只点了名字（"curator pass 在某些时段触发 = 大批量写"），细节在原作者另外的"自演化系统"文章里。功能上等同：定时把 conversation 历史<em>沉淀</em>回 SOUL / USER / MEMORY。</td>
-        <td><code>nanobot/agent/memory.py:444</code> <code>Consolidator</code>（每轮 token 超阈值时归档老消息到 <code>history.jsonl</code>）+ <code>nanobot/agent/memory.py:632</code> <code>Dream</code>（两阶段：LLM 分析 → AgentRunner 增量编辑 SOUL/USER/MEMORY）。</td>
-      </tr>
-    </tbody>
-  </table>
+      <rect class="bad-fill" x="520" y="125" width="220" height="80" rx="6"/>
+      <text class="node-text" x="630" y="148" style="fill:#f85149;font-weight:600">墙 ③  没行级隔离</text>
+      <text class="node-sub" x="630" y="168">SQLite 无 RLS 原语</text>
+      <text class="node-sub" x="630" y="184">合规红线 (SOC2 / 27001)</text>
 
-  <p>把这张表抓住，就知道"移植 Hermes 到 Athena" <strong>不是搬代码</strong>——Athena 几乎全有了——而是<strong>查对应件、补缺、把没接通的连线接好</strong>。</p>
+      <rect class="bad-fill" x="760" y="125" width="220" height="80" rx="6"/>
+      <text class="node-text" x="870" y="148" style="fill:#f85149;font-weight:600">墙 ④  容量天花板</text>
+      <text class="node-sub" x="870" y="168">100 user × 5 sess × 200KB</text>
+      <text class="node-sub" x="870" y="184">≈ 36 GB/年 + attachment</text>
+
+      <!-- arrow down "底座要换" -->
+      <path class="edge thick" d="M500,205 L500,235" marker-end="url(#arrA)"/>
+      <text class="edge-text" x="568" y="223">"换底座 (重建)"</text>
+
+      <!-- replacement stack -->
+      <rect class="info-fill" x="40" y="250" width="170" height="70" rx="6"/>
+      <text class="node-text" x="125" y="278" style="font-weight:600">Postgres + RLS</text>
+      <text class="node-sub" x="125" y="296">+ pgvector + pg_trgm</text>
+
+      <rect class="info-fill" x="225" y="250" width="170" height="70" rx="6"/>
+      <text class="node-text" x="310" y="278" style="font-weight:600">独立检索引擎</text>
+      <text class="node-sub" x="310" y="296">Meilisearch / OpenSearch</text>
+
+      <rect class="info-fill" x="410" y="250" width="170" height="70" rx="6"/>
+      <text class="node-text" x="495" y="278" style="font-weight:600">对象存储</text>
+      <text class="node-sub" x="495" y="296">S3 + lifecycle</text>
+
+      <rect class="info-fill" x="595" y="250" width="170" height="70" rx="6"/>
+      <text class="node-text" x="680" y="278" style="font-weight:600">Redis</text>
+      <text class="node-sub" x="680" y="296">session lock + cache</text>
+
+      <rect class="info-fill" x="780" y="250" width="170" height="70" rx="6"/>
+      <text class="node-text" x="865" y="278" style="font-weight:600">Vault</text>
+      <text class="node-sub" x="865" y="296">key 池 + 用量记账</text>
+
+      <!-- punchline -->
+      <rect x="100" y="345" width="800" height="42" rx="8" fill="#1c2230" stroke="#bc8cff" stroke-width="1.5"/>
+      <text class="label-strong" x="500" y="370" style="fill:#bc8cff">→ 作者结论：这不是"加几个配置"，是另一个产品 · 只有 prompt/skills/curator 与存储无关，可保留</text>
+    </svg>
+    <div class="caption">原文 5/8 篇幅都在讲"团队化要换什么"。Athena 的"移植"问题在原文坐标里只对应最底一句话。</div>
+  </div>
 
   <!-- ============== PART 2 ============== -->
   <div class="part p2">
     <div class="pno">PART 02</div>
-    <h1 class="ptitle">Athena 的真实形态对照</h1>
-    <div class="ptag">从 <code>nanobot-fleet.json</code> + 关键代码读出来的现状，不是 README。</div>
+    <h1 class="ptitle">Athena 已经在哪里</h1>
+    <div class="ptag">不是从零搬代码——大部分东西 Athena 已经有了，先认领。</div>
   </div>
 
-  <div class="vs">
-    <div class="col l">
-      <h4>Hermes <span class="ttag">单机个人助理</span></h4>
-      <ul>
-        <li>每用户一份 <code>~/.hermes/</code>（独立目录）</li>
-        <li>存储：<code>state.db</code>（SQLite WAL）+ <code>sessions/*.jsonl</code></li>
-        <li>检索：SQLite FTS5 trigram（中文 substring）</li>
-        <li>身份：单"我"，<code>SOUL.md</code> + <code>USER.md</code> 各一份</li>
-        <li>通道：CLI + Gateway（Telegram/IM/Discord）+ Cron + 子 agent</li>
-        <li>记忆维护：curator pass / Dream / GEPA 自演化</li>
-        <li>部署：<code>pip install + hermes setup</code>，零运维</li>
-      </ul>
-    </div>
-    <div class="col r">
-      <h4>Athena <span class="ttag">13-bot 团队助理</span></h4>
-      <ul>
-        <li>一个 EC2，13 个容器，<strong>同一镜像</strong>共享 workspace<br><code>i-c</code></li>
-        <li>存储：VectorDB pgvector（中心化）+ workspace 文件（共享）</li>
-        <li>检索：<code>memory_search</code>（pgvector 语义）+ <code>grep</code>（精确）</li>
-        <li>身份：<code>nanobot-fleet.json</code> 13 个 bot（Athena + 11 skins + the-boss），<code>app_id</code> + <code>open_id</code> + tier 元数据</li>
-        <li>通道：IM webhook → <code>nanobot/channels/im_channel.py</code>（线上）；slack/dingtalk/discord/telegram 等 14 个 channel 模块已写但未必启用</li>
-        <li>记忆维护：<code>Consolidator</code> session 内归档 + <code>Dream</code> 跨会话整理（<strong>fleet 没接通</strong>，见 Part 3）+ <code>hooks/compaction.py</code> 5 阶段渐进压缩（线上在跑）</li>
-        <li>部署：GitHub Actions → fleet-sync 到 EC2，docker compose 起 13 个容器</li>
-      </ul>
-    </div>
+  <div class="fig">
+    <div class="fig-title">单机 vs 多 bot · 架构对照</div>
+    <svg viewBox="0 0 1000 360" width="1000">
+      <!-- LEFT: Hermes -->
+      <rect class="group" x="20" y="20" width="430" height="320"/>
+      <text class="label-strong" x="235" y="42" style="fill:#58a6ff">Hermes 单机</text>
+      <text class="node-sub" x="235" y="58">~/.hermes/ · pip install + hermes setup</text>
+
+      <rect class="node" x="50" y="80" width="130" height="36" rx="5"/><text class="node-text" x="115" y="98">CLI</text>
+      <rect class="node" x="195" y="80" width="100" height="36" rx="5"/><text class="node-text" x="245" y="98">Gateway</text>
+      <text class="node-sub" x="245" y="124">Telegram/IM</text>
+      <rect class="node" x="310" y="80" width="120" height="36" rx="5"/><text class="node-text" x="370" y="98">Cron / 子 agent</text>
+
+      <rect class="accent-fill" x="120" y="155" width="240" height="40" rx="6"/>
+      <text class="node-text" x="240" y="178" style="font-weight:600">run_agent.py · AIAgent</text>
+
+      <path class="edge" d="M115,116 L210,155" marker-end="url(#arrA)"/>
+      <path class="edge" d="M245,116 L245,155" marker-end="url(#arrA)"/>
+      <path class="edge" d="M370,116 L275,155" marker-end="url(#arrA)"/>
+
+      <rect class="node" x="40" y="225" width="100" height="60" rx="5"/>
+      <text class="node-text" x="90" y="248">state.db</text>
+      <text class="node-sub" x="90" y="266">SQLite WAL</text>
+
+      <rect class="node" x="155" y="225" width="100" height="60" rx="5"/>
+      <text class="node-text" x="205" y="248">sessions/</text>
+      <text class="node-sub" x="205" y="266">*.jsonl 本地</text>
+
+      <rect class="node" x="270" y="225" width="100" height="60" rx="5"/>
+      <text class="node-text" x="320" y="248">SOUL/USER/</text>
+      <text class="node-sub" x="320" y="266">MEMORY.md</text>
+
+      <rect class="node" x="320" y="290" width="100" height="36" rx="5"/>
+      <text class="node-text" x="370" y="310">skills/</text>
+
+      <path class="edge" d="M210,195 L120,225" marker-end="url(#arrA)"/>
+      <path class="edge" d="M240,195 L205,225" marker-end="url(#arrA)"/>
+      <path class="edge" d="M260,195 L300,225" marker-end="url(#arrA)"/>
+
+      <!-- RIGHT: Athena -->
+      <rect class="group" x="540" y="20" width="440" height="320"/>
+      <text class="label-strong" x="760" y="42" style="fill:#ff8c42">Athena fleet</text>
+      <text class="node-sub" x="760" y="58">EC2 i-...c · 13 容器同镜像 · CI/CD 自动部署</text>
+
+      <!-- 13 containers grid -->
+      <rect class="node accent-fill" x="560" y="80" width="60" height="34" rx="4"/><text class="node-text" x="590" y="100" style="font-size:10.5px">athena</text>
+      <rect class="node" x="630" y="80" width="50" height="34" rx="4"/><text class="node-text" x="655" y="100" style="font-size:10px">skin-01</text>
+      <rect class="node" x="690" y="80" width="50" height="34" rx="4"/><text class="node-text" x="715" y="100" style="font-size:10px">skin-02</text>
+      <rect class="node" x="750" y="80" width="50" height="34" rx="4"/><text class="node-text" x="775" y="100" style="font-size:10px">skin-03</text>
+      <rect class="node" x="810" y="80" width="50" height="34" rx="4"/><text class="node-text" x="835" y="100" style="font-size:10px">skin-04</text>
+      <rect class="node" x="870" y="80" width="50" height="34" rx="4"/><text class="node-text" x="895" y="100" style="font-size:10px">skin-05</text>
+
+      <rect class="node" x="560" y="120" width="50" height="34" rx="4"/><text class="node-text" x="585" y="140" style="font-size:10px">skin-06</text>
+      <rect class="node" x="620" y="120" width="50" height="34" rx="4"/><text class="node-text" x="645" y="140" style="font-size:10px">skin-07</text>
+      <rect class="node" x="680" y="120" width="50" height="34" rx="4"/><text class="node-text" x="705" y="140" style="font-size:10px">skin-08</text>
+      <rect class="node" x="740" y="120" width="50" height="34" rx="4"/><text class="node-text" x="765" y="140" style="font-size:10px">skin-09</text>
+      <rect class="node" x="800" y="120" width="50" height="34" rx="4"/><text class="node-text" x="825" y="140" style="font-size:10px">skin-10</text>
+      <rect class="node" x="860" y="120" width="50" height="34" rx="4"/><text class="node-text" x="885" y="140" style="font-size:10px">skin-11</text>
+      <rect class="node" x="920" y="120" width="50" height="34" rx="4"/><text class="node-text" x="945" y="140" style="font-size:10px">the-boss</text>
+
+      <text class="node-sub" x="760" y="174">每容器跑同一份 nanobot_server，仅 env 不同</text>
+
+      <!-- 共享 workspace -->
+      <rect class="cyan-fill" x="580" y="195" width="360" height="50" rx="6"/>
+      <text class="node-text" x="760" y="218" style="font-weight:600;fill:#56d4dd">共享 workspace (mount)</text>
+      <text class="node-sub" x="760" y="234">/home/ubuntu/agent-data/prod/workspace/</text>
+
+      <path class="edge" d="M590,114 L590,195" marker-end="url(#arrA)" stroke-dasharray="2,2"/>
+      <path class="edge" d="M945,154 L945,195" marker-end="url(#arrA)" stroke-dasharray="2,2"/>
+      <text class="edge-text" x="555" y="160">13 路 mount</text>
+
+      <!-- 共享 workspace 文件 -->
+      <rect class="node" x="580" y="265" width="100" height="50" rx="5"/>
+      <text class="node-text" x="630" y="284">SOUL/USER/</text>
+      <text class="node-sub" x="630" y="302">MEMORY.md</text>
+
+      <rect class="node" x="690" y="265" width="115" height="50" rx="5"/>
+      <text class="node-text" x="747" y="284">memory/history</text>
+      <text class="node-sub" x="747" y="302">*.jsonl 共享</text>
+
+      <rect class="node" x="815" y="265" width="100" height="50" rx="5"/>
+      <text class="node-text" x="865" y="284">skills/</text>
+      <text class="node-sub" x="865" y="302">9 个内置</text>
+
+      <!-- 外挂中央存储 -->
+      <rect class="purple-fill" x="580" y="328" width="360" height="22" rx="4"/>
+      <text class="node-text" x="760" y="342" style="font-size:11px;fill:#bc8cff;font-weight:600">+ VectorDB pgvector (memory_search, 跨 bot 中央向量库)</text>
+    </svg>
+    <div class="caption">关键差异：Hermes 是"一文件夹全包"，Athena 是"一份共享 workspace + N 个容器 + 一个中央向量库"。这套结构决定了"接 Dream"必须做 leader 选举。</div>
   </div>
 
-  <h3>Athena 已经有的 Hermes 特性（逐项对照）</h3>
+  <div class="fig">
+    <div class="fig-title">特性覆盖矩阵 · Hermes 思路 → Athena 现状</div>
+    <svg viewBox="0 0 1000 480" width="1000">
+      <!-- header bar -->
+      <rect x="350" y="20" width="100" height="30" rx="4" fill="#3fb950" opacity="0.7"/>
+      <text class="node-text" x="400" y="40" style="font-weight:700;fill:#0d1117">已有 ✓</text>
+      <rect x="460" y="20" width="100" height="30" rx="4" fill="#d29922" opacity="0.7"/>
+      <text class="node-text" x="510" y="40" style="font-weight:700;fill:#0d1117">部分 ≈</text>
+      <rect x="570" y="20" width="100" height="30" rx="4" fill="#f85149" opacity="0.7"/>
+      <text class="node-text" x="620" y="40" style="font-weight:700;fill:#0d1117">缺 / N/A ✗</text>
 
-  <table>
-    <thead>
-      <tr><th style="width:22%">Hermes 概念</th><th style="width:38%">Athena 对应件</th><th style="width:12%">状态</th><th>备注 / 文件位置</th></tr>
-    </thead>
-    <tbody>
-      <tr><td>本地多模态存储</td><td>workspace 文件 + pgvector + S3 (VectorDB)</td><td class="s-yes">✓ 已有</td><td>VectorDB 是托管 PG + pgvector，<code>agent/memory.py:21</code></td></tr>
-      <tr><td>SOUL.md / USER.md / MEMORY.md</td><td>同名三件套</td><td class="s-yes">✓ 已有</td><td><code>nanobot/agent/memory.py:31-79</code> 全部按这套路径管理</td></tr>
-      <tr><td>session 历史归档</td><td><code>memory/history/YYYY-MM-DD.jsonl</code></td><td class="s-yes">✓ 已有</td><td>By-date sharded JSONL，<code>nanobot/skills/memory/SKILL.md</code></td></tr>
-      <tr><td>语义检索</td><td><code>memory_search(query, scope, limit)</code></td><td class="s-yes">✓ 已有</td><td>暴露给 agent 当工具用，不是自动注入</td></tr>
-      <tr><td>精确字符检索（trigram FTS5）</td><td>agent 调内置 <code>grep</code> 对 jsonl</td><td class="s-part">≈ 凑合</td><td>没真正 trigram 索引，但 LLM 主动调 <code>grep</code> 在中等规模够用</td></tr>
-      <tr><td>技能系统 skills/</td><td><code>nanobot/skills/&lt;name&gt;/SKILL.md</code></td><td class="s-yes">✓ 已有</td><td>9 个内置技能 + <code>skill-creator</code> 让 agent 自己写新技能</td></tr>
-      <tr><td>Gateway 多通道</td><td><code>nanobot/channels/</code> 14 个</td><td class="s-yes">✓ 已有</td><td>线上启用 <code>im_channel.py</code></td></tr>
-      <tr><td>子 agent / delegation</td><td><code>SpawnTool</code> + <code>QuickSubagentTool</code></td><td class="s-yes">✓ 已有</td><td><code>nanobot/agent/subagent.py</code> + <code>tools/quick_subagent.py</code></td></tr>
-      <tr><td>Cron 任务</td><td><code>nanobot/cron/service.py</code> <code>CronService</code></td><td class="s-part">≈ 部分</td><td>CLI 启动路径有用；<strong>fleet <code>nanobot_server.py</code> 没初始化</strong></td></tr>
-      <tr><td>curator / Dream 自演化</td><td><code>Dream</code> + <code>Consolidator</code></td><td class="s-part">≈ 部分</td><td>代码完整、loop.py 实例化、cli 注册——但 fleet 启动路径没注册 system job</td></tr>
-      <tr><td>三层 SOUL.md (Org/Team/User)</td><td>—</td><td class="s-no">✗ 缺</td><td>当前只有"一份 SOUL.md（fleet 共享）+ skins/&lt;bot&gt;/ 子身份"</td></tr>
-      <tr><td>API key 池 + 用量记账</td><td><code>src/admin/schema.sql</code> + <code>UsageMeter</code></td><td class="s-yes">✓ 已有</td><td>Athena 比 Hermes 更完整：<code>usage_events</code> 表 + 每次 LLM 调用埋点</td></tr>
-      <tr><td>RLS / 行级安全</td><td>Python 后置 <code>agent_id</code> 过滤</td><td class="s-part">≈ 凑合</td><td>CLAUDE.md 明确警告"任何新搜索入口忘了过滤会跨 agent 泄漏"——这正是原文说的"应用层强制 WHERE"模式</td></tr>
-      <tr><td>SQLite 单机模式</td><td>—</td><td class="s-na">N/A</td><td>不适用——Athena 是 SaaS 服务端</td></tr>
-      <tr><td>5 阶段渐进上下文压缩</td><td><code>hooks/compaction.py</code></td><td class="s-yes">✓ 已有（Athena 独有）</td><td>原文没这个；60% Offload → 70% Prune → 70% Truncate → 85% LLM Index → 92% Emergency</td></tr>
-      <tr><td>Difficulty router 1-3→Sonnet / 4-5→Opus</td><td><code>difficulty.py</code> + <code>gemini_judge.py</code></td><td class="s-yes">✓ 已有（Athena 独有）</td><td>原文没这个</td></tr>
-      <tr><td>Hatchet durable task</td><td><code>message_handler_task</code> 30min 超时</td><td class="s-yes">✓ 已有（Athena 独有）</td><td>原文没这个</td></tr>
-    </tbody>
-  </table>
+      <!-- helper: 17 rows -->
+      <!-- group: 存储/数据 -->
+      <text x="50" y="80" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase">存储 / 数据</text>
+      <line x1="50" y1="86" x2="950" y2="86" stroke="#2a3142"/>
 
-  <p style="color:var(--muted);font-size:13px">结论：从纯特性比对，<strong>Athena 比 Hermes 的功能集大得多</strong>。所以"移植"不是补功能，而是<em>检视 Hermes 思路里那些 Athena 已经有但<strong>没接通 / 没启用 / 没显式化</strong>的设计</em>。</p>
+      <g transform="translate(0,90)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">SOUL/USER/MEMORY 三件套</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="ok-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#3fb950;font-weight:600">✓</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">nanobot/agent/memory.py · MemoryStore</text>
+      </g>
+      <g transform="translate(0,116)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">JSONL session 归档</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="ok-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#3fb950;font-weight:600">✓</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">memory/history/YYYY-MM-DD.jsonl</text>
+      </g>
+      <g transform="translate(0,142)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">语义检索 (semantic recall)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="ok-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#3fb950;font-weight:600">✓ 更强</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">VectorDB pgvector + memory_search 工具</text>
+      </g>
+      <g transform="translate(0,168)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">精确字符检索 (trigram FTS5)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="warn-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#d29922;font-weight:600">≈</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">靠 agent 主动调 grep on jsonl</text>
+      </g>
+
+      <text x="50" y="210" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase">提示工程 / 技能</text>
+      <line x1="50" y1="216" x2="950" y2="216" stroke="#2a3142"/>
+
+      <g transform="translate(0,220)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">技能系统 skills/</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="ok-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#3fb950;font-weight:600">✓</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">9 内置 + skill-creator</text>
+      </g>
+      <g transform="translate(0,246)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">Org / Team / User 三层 SOUL</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="bad-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#f85149;font-weight:600">✗</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">只有 fleet 共享 SOUL + skins/&lt;bot&gt;/</text>
+      </g>
+
+      <text x="50" y="290" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase">自演化 / curator</text>
+      <line x1="50" y1="296" x2="950" y2="296" stroke="#2a3142"/>
+
+      <g transform="translate(0,300)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">Consolidator (session 内归档)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="ok-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#3fb950;font-weight:600">✓ 活的</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">memory.py:444 · token 触发</text>
+      </g>
+      <g transform="translate(0,326)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">Dream (跨会话整理 SOUL/USER/MEM)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" class="warn-fill"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#d29922;font-weight:600">≈ 代码在</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">memory.py:632 · 但 fleet 没注册 cron</text>
+      </g>
+
+      <text x="50" y="370" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase">Athena 独有 (Hermes 没有)</text>
+      <line x1="50" y1="376" x2="950" y2="376" stroke="#2a3142"/>
+
+      <g transform="translate(0,380)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">5 阶段渐进 prompt 压缩</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" fill="#bc8cff" opacity="0.3" stroke="#bc8cff"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#bc8cff;font-weight:600">★</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">hooks/compaction.py · 60%→92%</text>
+      </g>
+      <g transform="translate(0,406)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">Difficulty router (Sonnet/Opus 分流)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" fill="#bc8cff" opacity="0.3" stroke="#bc8cff"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#bc8cff;font-weight:600">★</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">difficulty.py + gemini_judge.py</text>
+      </g>
+      <g transform="translate(0,432)">
+        <text x="50" y="20" style="fill:#e6edf3;font-size:12.5px">Hatchet durable task (crash-safe)</text>
+        <rect x="700" y="6" width="50" height="20" rx="3" fill="#bc8cff" opacity="0.3" stroke="#bc8cff"/><text class="node-text" x="725" y="20" style="font-size:11px;fill:#bc8cff;font-weight:600">★</text>
+        <text x="760" y="20" style="fill:#7d8590;font-family:SF Mono;font-size:10px">message_handler_task · 30min timeout</text>
+      </g>
+    </svg>
+    <div class="caption">总览：Athena 功能集大 Hermes 一截。真正"缺"的只有 Org/Team/User 三层。"≈ 代码在"那行就是下一节的金矿。</div>
+  </div>
 
   <!-- ============== PART 3 ============== -->
   <div class="part p3">
     <div class="pno">PART 03</div>
-    <h1 class="ptitle">核心发现 · 没接通的连线</h1>
-    <div class="ptag">这是整篇报告最有价值的一段——决定了"小工作量移植"到底有多小。</div>
+    <h1 class="ptitle">核心发现 · 一条断开的连线</h1>
+    <div class="ptag">这张图决定了"为什么移植工作量这么小"。</div>
   </div>
 
-  <div class="finding">
-    <div class="hdr">FINDING · Dream 子系统线上不工作的根因</div>
-    <p><strong>事实链</strong>：</p>
-    <ol>
-      <li><code>nanobot/agent/memory.py</code> 共 785 行，定义了 <code>MemoryStore</code> / <code>Consolidator</code> / <code>Dream</code> 三个完整类。</li>
-      <li><code>nanobot/agent/loop.py:312-326</code> <code>AgentLoop.__init__</code> 总是实例化 <code>self.consolidator</code> 和 <code>self.dream</code>——这部分没争议。</li>
-      <li><strong>Consolidator</strong> 在 <code>loop.py:629/647/665/706</code> 通过 <code>maybe_consolidate_by_tokens</code> <em>自动</em> 触发——session 内归档老消息进 <code>history.jsonl</code>。<strong>这一半是活的</strong>。</li>
-      <li><strong>Dream</strong> 是<em>独立的</em> system job，必须靠 <code>CronService.register_system_job(id="dream", ...)</code> 注册才会跑。</li>
-      <li><code>nanobot/cli/commands.py:805-818</code>（CLI 入口）<strong>有</strong>这段注册：
-        <pre style="background:var(--card-2);padding:10px 14px;border-radius:4px;font-size:11.5px;color:var(--muted);overflow-x:auto;margin:8px 0"><code style="background:none;color:var(--text)">cron.register_system_job(CronJob(
-    id="dream",
-    name="dream",
-    schedule=dream_cfg.build_schedule(config.agents.defaults.timezone),
-    payload=CronPayload(kind="system_event"),
-))</code></pre>
-      </li>
-      <li><code>nanobot_server.py</code>（fleet 实际启动文件，229976 字节）<strong>整文件没有</strong> <code>cron</code>、<code>CronService</code>、<code>register_system_job</code>、<code>Dream</code> 字样——只把 AgentLoop 起来，但<strong>没起 cron service，也没注册 Dream job</strong>。</li>
-      <li>项目 <code>CLAUDE.md</code> 同时存在一条互相矛盾的标注："workspace has no <code>.git</code>, <code>.cursor</code>/<code>.dream_cursor</code> haven't moved for weeks" / "Compaction Hook replaced them"——前半句是事实（Dream 没跑），后半句是误判（Compaction Hook 解决会话内压缩 ≠ Dream 跨会话沉淀）。</li>
-      <li>但 <code>nanobot/skills/memory/SKILL.md</code> <strong>仍然告诉 agent</strong>：<em>"SOUL/USER/MEMORY 由 Dream 自动管理，请勿编辑"</em>——这条对 Hermes/CLI 路径是对的，对 fleet 部署是<strong>失实承诺</strong>。</li>
-    </ol>
-    <p style="margin-top:14px"><strong>含义</strong>：Athena 线上的 SOUL/USER/MEMORY 处于"agent 以为自动维护，实际没人维护"的状态。MEMORY.md 顶上那行 <code>Last compressed: YYYY-MM-DD</code> 是手动加的人类时间戳，没有自动 Dream 修订。</p>
+  <div class="fig">
+    <div class="fig-title">Dream 子系统 · 应有连线 vs 实际连线</div>
+    <svg viewBox="0 0 1000 470" width="1000">
+      <!-- center group: memory.py classes -->
+      <rect class="group" x="320" y="160" width="360" height="160"/>
+      <text class="node-sub" x="500" y="180" style="font-weight:600;font-size:11px;letter-spacing:0.05em">nanobot/agent/memory.py · 785 行</text>
+
+      <rect class="node" x="345" y="195" width="100" height="46" rx="6"/>
+      <text class="node-text" x="395" y="216">MemoryStore</text>
+      <text class="node-sub" x="395" y="232">line 31 · 文件 I/O</text>
+
+      <rect class="node ok-fill" x="465" y="195" width="100" height="46" rx="6"/>
+      <text class="node-text" x="515" y="216" style="fill:#3fb950;font-weight:600">Consolidator</text>
+      <text class="node-sub" x="515" y="232">line 444 · 活的</text>
+
+      <rect class="node warn-fill" x="585" y="195" width="100" height="46" rx="6"/>
+      <text class="node-text" x="635" y="216" style="fill:#d29922;font-weight:600">Dream</text>
+      <text class="node-sub" x="635" y="232">line 632 · 等触发</text>
+
+      <text class="node-sub" x="500" y="270" style="font-size:10.5px">三类完整实现 · Phase1 LLM 分析 → Phase2 AgentRunner 增量编辑</text>
+      <text class="node-sub" x="500" y="286" style="font-size:10.5px">仅 MemoryStore 自被 context.py 使用 · Consolidator/Dream 等下游接通</text>
+
+      <!-- AgentLoop on left -->
+      <rect class="info-fill" x="80" y="40" width="200" height="60" rx="8"/>
+      <text class="label-strong" x="180" y="62">AgentLoop.__init__</text>
+      <text class="node-sub" x="180" y="80">loop.py:312-326</text>
+
+      <!-- AgentLoop instantiates both -->
+      <path class="edge ok thick" d="M280,75 Q400,80 460,195" marker-end="url(#arrG)"/>
+      <text class="edge-text" x="380" y="120" style="fill:#3fb950">① 实例化 self.consolidator</text>
+
+      <path class="edge ok thick" d="M280,82 Q500,140 590,195" marker-end="url(#arrG)"/>
+      <text class="edge-text" x="500" y="160" style="fill:#3fb950">② 实例化 self.dream</text>
+
+      <!-- Consolidator auto-fires from loop -->
+      <rect class="ok-fill" x="80" y="135" width="200" height="40" rx="6"/>
+      <text class="node-text" x="180" y="160" style="fill:#3fb950;font-weight:600">loop.py:629/647/665/706</text>
+      <path class="edge ok" d="M280,155 Q360,160 465,210" marker-end="url(#arrG)"/>
+      <text class="edge-text" x="350" y="190" style="fill:#3fb950">maybe_consolidate_by_tokens</text>
+
+      <!-- Top right: 两条启动路径 -->
+      <rect class="group" x="720" y="40" width="260" height="200"/>
+      <text class="node-sub" x="850" y="60" style="font-weight:600;font-size:11px;letter-spacing:0.05em">谁负责注册 Dream cron?</text>
+
+      <!-- CLI path -->
+      <rect class="ok-fill" x="740" y="75" width="220" height="56" rx="6"/>
+      <text class="node-text" x="850" y="96" style="fill:#3fb950;font-weight:600">CLI 启动 (本地/dev)</text>
+      <text class="node-sub" x="850" y="114" style="font-size:10px">cli/commands.py:805-818</text>
+      <text class="node-sub" x="850" y="126" style="font-size:10px;fill:#3fb950">✓ register_system_job("dream")</text>
+
+      <!-- Fleet path -->
+      <rect class="bad-fill" x="740" y="148" width="220" height="76" rx="6"/>
+      <text class="node-text" x="850" y="170" style="fill:#f85149;font-weight:600">Fleet 启动 (线上)</text>
+      <text class="node-sub" x="850" y="186" style="font-size:10px">nanobot_server.py</text>
+      <text class="node-sub" x="850" y="200" style="font-size:10px;fill:#f85149">✗ 整文件无 "cron / Dream / register"</text>
+      <text class="node-sub" x="850" y="214" style="font-size:10px;fill:#f85149">→ Dream.run() 永远不被调用</text>
+
+      <!-- 两条连线到 Dream -->
+      <path class="edge ok dashed thick" d="M740,103 Q700,140 685,200" marker-end="url(#arrG)"/>
+      <text class="edge-text" x="703" y="140" style="fill:#3fb950">应连 ✓</text>
+
+      <path class="edge bad dashed thick" d="M740,186 Q700,200 685,222" marker-end="url(#arrR)"/>
+      <text class="edge-text" x="700" y="210" style="fill:#f85149">应连 ✗</text>
+
+      <!-- bottom: SKILL.md tells agent "Dream auto manages" -->
+      <rect class="warn-fill" x="280" y="370" width="440" height="60" rx="8"/>
+      <text class="node-text" x="500" y="392" style="font-weight:600;fill:#d29922">nanobot/skills/memory/SKILL.md</text>
+      <text class="node-sub" x="500" y="410" style="font-size:11px">"SOUL/USER/MEMORY 由 Dream 自动管理，请勿编辑"</text>
+      <text class="node-sub" x="500" y="424" style="font-size:11px;fill:#d29922">→ 对 CLI 路径是事实；对 fleet 部署是空头承诺</text>
+
+      <path class="edge warn thick" d="M500,370 L500,330" marker-end="url(#arrA)"/>
+      <text class="edge-text" x="540" y="354" style="fill:#d29922">承诺给 agent</text>
+
+      <!-- Footer indicator -->
+      <text class="node-sub" x="500" y="455" style="font-size:11px;fill:#7d8590">线上结果：workspace/.dream_cursor 几周没动 · MEMORY.md 顶部"Last compressed: YYYY-MM-DD"由人手添加</text>
+    </svg>
+    <div class="caption">绿线 = 已接通，红虚 = 应连未连。注：MemoryStore 已被 <code>context.py</code> 用上（提供文件读写底座），仅 Consolidator/Dream 等触发未接通——而真正生效的"自演化"环节就在这一步。</div>
   </div>
 
-  <div class="finding">
-    <div class="hdr">FINDING · 共享 workspace 决定了 Dream 不能裸接通</div>
-    <p>CLAUDE.md 提示的<strong>硬约束</strong>：13 个 fleet 容器 mount 同一份 <code>/home/ubuntu/agent-data/prod/workspace/</code>。如果直接像 Hermes 那样在每个 bot 里跑 Dream：</p>
-    <ul>
-      <li>13 个进程并发改 <code>workspace/SOUL.md</code>、<code>USER.md</code>、<code>memory/MEMORY.md</code> → 写覆盖、内容竞争</li>
-      <li><code>Dream</code> 的 <code>GitStore.auto_commit</code> 同时 fire 13 路 → git index lock 冲突</li>
-      <li>这是单机版搬到团队版第一个会撞的墙——但<strong>原文没讲这种"伪团队版"</strong>（同一文件系统多进程），它直接跳到"换 Postgres"</li>
-    </ul>
-    <p style="margin-top:10px">所以 Athena 的<strong>正确接通方式</strong>是：<em>选一个 leader bot（比如 Athena 本体）跑 Dream，其他 skin-bot 不跑 Dream</em>。具体策略在 Part 4 的 S1 方案里。</p>
+  <div class="fig">
+    <div class="fig-title">为什么"裸接通"会爆炸 · 共享 workspace 的并发约束</div>
+    <svg viewBox="0 0 1000 280" width="1000">
+      <!-- 共享文件 -->
+      <rect class="cyan-fill" x="380" y="100" width="240" height="80" rx="10"/>
+      <text class="node-text" x="500" y="130" style="fill:#56d4dd;font-weight:600">workspace/SOUL.md</text>
+      <text class="node-text" x="500" y="150" style="fill:#56d4dd;font-weight:600">USER.md / MEMORY.md</text>
+      <text class="node-sub" x="500" y="170">单一实体 · mount 给所有容器</text>
+
+      <!-- 13 containers above, each "wants to write" -->
+      <rect class="bad-fill" x="50" y="20" width="80" height="40" rx="5"/><text class="node-text" x="90" y="44" style="font-size:11px">athena</text>
+      <rect class="bad-fill" x="140" y="20" width="80" height="40" rx="5"/><text class="node-text" x="180" y="44" style="font-size:11px">skin-01</text>
+      <rect class="bad-fill" x="230" y="20" width="80" height="40" rx="5"/><text class="node-text" x="270" y="44" style="font-size:11px">skin-02</text>
+      <text class="node-sub" x="350" y="44">...</text>
+      <rect class="bad-fill" x="400" y="20" width="80" height="40" rx="5"/><text class="node-text" x="440" y="44" style="font-size:11px">skin-09</text>
+      <rect class="bad-fill" x="490" y="20" width="80" height="40" rx="5"/><text class="node-text" x="530" y="44" style="font-size:11px">skin-10</text>
+      <rect class="bad-fill" x="580" y="20" width="80" height="40" rx="5"/><text class="node-text" x="620" y="44" style="font-size:11px">skin-11</text>
+      <rect class="bad-fill" x="670" y="20" width="80" height="40" rx="5"/><text class="node-text" x="710" y="44" style="font-size:11px">skin-fin</text>
+      <rect class="bad-fill" x="760" y="20" width="80" height="40" rx="5"/><text class="node-text" x="800" y="44" style="font-size:11px">the-boss</text>
+
+      <!-- 13 conflicting arrows -->
+      <path class="edge bad" d="M90,60 Q200,80 420,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M180,60 Q280,80 440,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M270,60 Q330,80 460,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M440,60 Q460,80 500,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M530,60 Q520,80 540,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M620,60 Q580,80 560,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M710,60 Q620,80 580,100" marker-end="url(#arrR)"/>
+      <path class="edge bad" d="M800,60 Q700,80 600,100" marker-end="url(#arrR)"/>
+
+      <text class="edge-text" x="800" y="100" style="fill:#f85149;font-weight:600;font-size:13px">同时 fire Dream</text>
+      <text class="edge-text" x="800" y="118">↓</text>
+      <text class="edge-text" x="800" y="134" style="fill:#f85149">13 路改同一文件</text>
+      <text class="edge-text" x="800" y="148" style="fill:#f85149">+ GitStore index lock</text>
+
+      <!-- 解决方案 -->
+      <path class="edge thick" d="M500,180 L500,210" marker-end="url(#arrA)"/>
+
+      <rect class="ok-fill" x="200" y="220" width="600" height="50" rx="8"/>
+      <text class="node-text" x="500" y="244" style="fill:#3fb950;font-weight:600">解决：leader 选举 — 仅 athena 跑 Dream</text>
+      <text class="node-sub" x="500" y="260" style="font-size:11px">skin-bot 仍执行 Consolidator（自己 session 内归档）→ 由 leader 统一消化</text>
+    </svg>
+    <div class="caption">这是为什么"小工作量移植"不能只是简单搬注册逻辑——必须加 leader 选举，不然 13 容器并发改 SOUL.md 会爆。</div>
   </div>
 
   <!-- ============== PART 4 ============== -->
   <div class="part p4">
     <div class="pno">PART 04</div>
-    <h1 class="ptitle">移植方案 · 三档工作量</h1>
-    <div class="ptag">按"投入 / 收益 / 风险"排序。强烈建议只做 S 档，必要时做 M1，剩下都不值。</div>
+    <h1 class="ptitle">移植方案 · 决策树</h1>
+    <div class="ptag">按"投入 / 收益 / 触发条件"分档，强烈建议只做 S 档。</div>
   </div>
 
-  <div class="tier">
-    <span class="badge">S1 · 强烈推荐</span>
-    <span class="tcost">≈ 50–80 行 · 1 PR · 0.5 工时</span>
-    <div class="ttitle">把 Dream system job 接到 fleet 启动路径</div>
-    <div class="tsubtitle">把 <code>cli/commands.py:805-818</code> 那段 cron 注册搬到 <code>nanobot_server.py</code>，但加 <strong>leader 选举</strong>——只在 Athena 本体跑，skin-bot 跳过。</div>
-    <div class="tbody">
-      <p><strong>做什么</strong>：</p>
-      <ul>
-        <li>在 <code>nanobot_server.py</code> 启动时按 <code>BOT_NAME == "athena"</code>（或 fleet.json 里加 <code>"dream_leader": true</code> 标志）判断当前是否为 leader</li>
-        <li>leader 上初始化 <code>CronService</code>，注册 Dream system job</li>
-        <li>非 leader 仍然有 <code>self.consolidator</code>（session 内归档），但 Dream 不触发——他们写的 history.jsonl 会被 leader 统一消化</li>
-        <li>同步更新 <code>CLAUDE.md</code> 里那条"Dead code, Don't try to enable"标注——它已经过时</li>
-        <li>Dream 跑通后，<code>nanobot/skills/memory/SKILL.md</code> 的承诺就<em>变成真的</em>了</li>
-      </ul>
-      <div class="filelist">
-        <span class="mod">~</span> <span class="fl">agent/nanobot_server.py</span> &nbsp; 加 CronService init + Dream 注册（仿 cli/commands.py:790-820）<br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot-fleet.json</span> &nbsp; Athena 那条加 <code>"dream_leader": true</code><br>
-        <span class="mod">~</span> <span class="fl">agent/CLAUDE.md</span> &nbsp; 修订 "Dead code in nanobot/agent/memory.py" 段落<br>
-        <span class="add">+</span> <span class="fl">agent/tests/test_dream_leader.py</span> &nbsp; 验证只有 athena 注册 Dream job<br>
-        <span class="mod">~</span> <span class="fl">agent/scripts/check_dream_status.sh</span> &nbsp; 加 leader 上 <code>.dream_cursor</code> mtime 健康检查
-      </div>
-      <p style="margin-top:10px"><strong>风险点</strong>：Dream Phase 2 用 AgentRunner 调用 LLM 增量编辑文件——leader 选举 + 文件锁要确保 Phase 2 期间没人编辑同一文件。<code>MemoryStore</code> 已有 <code>self._git</code>（GitStore）做版本化，但 workspace 没初始化 git，建议<em>不开 GitStore</em>（避免 13 容器锁冲突），改成 Dream 跑前对 SOUL/USER/MEMORY 做 <code>.bak</code> 副本（rollback 用 <code>/dream-restore</code> 命令——这命令已经存在）。</p>
-    </div>
+  <div class="fig">
+    <div class="fig-title">从问题出发的决策路径</div>
+    <svg viewBox="0 0 1000 540" width="1000">
+      <!-- 根 -->
+      <rect class="accent-fill" x="350" y="20" width="300" height="50" rx="8"/>
+      <text class="label-strong" x="500" y="42" style="fill:#ff8c42">移植 Hermes 思路 → Athena</text>
+      <text class="node-sub" x="500" y="60">从这里出发</text>
+
+      <!-- 分叉 1: Dream 接通? -->
+      <path class="edge thick" d="M500,70 L500,100" marker-end="url(#arrA)"/>
+      <rect class="info-fill" x="350" y="100" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="120" style="font-weight:600">问 1：线上 Dream 跑没跑？</text>
+      <text class="node-sub" x="500" y="136">grep .dream_cursor mtime</text>
+
+      <!-- → 没跑 → S1 -->
+      <path class="edge thick ok" d="M500,144 L500,170" marker-end="url(#arrG)"/>
+      <rect class="ok-fill" x="50" y="180" width="900" height="62" rx="8"/>
+      <text class="node-text" x="500" y="200" style="font-weight:700;fill:#3fb950;font-size:14px">S1 · 强烈推荐 ★★★</text>
+      <text class="node-sub" x="500" y="218" style="font-size:12px">把 cli/commands.py:805 的 cron 注册搬到 nanobot_server，加 leader 选举（只在 athena 本体跑）</text>
+      <text class="node-sub" x="500" y="234" style="font-size:11px;font-family:SF Mono">≈ 50-80 行 · 1 PR · 0.5 工时 · 影响：Dream 真正开始定时整理 SOUL/USER/MEMORY</text>
+
+      <!-- 分叉 2: 文档与代码失真? -->
+      <path class="edge thick" d="M500,242 L500,262" marker-end="url(#arrA)"/>
+      <rect class="info-fill" x="350" y="262" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="282" style="font-weight:600">问 2：agent 怎么知道 Dream 在跑？</text>
+      <text class="node-sub" x="500" y="298">SKILL.md 现在是空头承诺</text>
+
+      <path class="edge thick ok" d="M500,306 L500,330" marker-end="url(#arrG)"/>
+      <rect class="ok-fill" x="50" y="340" width="900" height="60" rx="8"/>
+      <text class="node-text" x="500" y="360" style="font-weight:700;fill:#3fb950;font-size:14px">S2 · 强烈推荐 ★★★</text>
+      <text class="node-sub" x="500" y="378" style="font-size:12px">SOUL/USER/MEMORY 头加 frontmatter：last_dream_run / version / last_human_edit</text>
+      <text class="node-sub" x="500" y="394" style="font-size:11px;font-family:SF Mono">≈ 20-30 行 · 同 PR · 0.3 工时 · 影响：agent 读文件时一眼能看到上次 Dream 时间</text>
+
+      <!-- 分叉 3: 有没有外部租户需求? -->
+      <path class="edge thick" d="M500,400 L500,420" marker-end="url(#arrA)"/>
+      <rect class="info-fill" x="350" y="420" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="440" style="font-weight:600">问 3：要接外部租户吗？</text>
+      <text class="node-sub" x="500" y="456">trigger：开始有非 The Company 团队进来</text>
+
+      <!-- 左右分叉 -->
+      <path class="edge warn dashed" d="M425,464 Q250,490 200,500" marker-end="url(#arrA)"/>
+      <path class="edge bad dashed" d="M575,464 Q780,490 800,500" marker-end="url(#arrA)"/>
+
+      <rect class="warn-fill" x="60" y="492" width="320" height="44" rx="6"/>
+      <text class="node-text" x="220" y="512" style="fill:#d29922;font-weight:600">M1 · 业务驱动再做</text>
+      <text class="node-sub" x="220" y="528" style="font-size:11px">三层 Org / Team / User SOUL.md</text>
+
+      <rect class="bad-fill" x="620" y="492" width="320" height="44" rx="6"/>
+      <text class="node-text" x="780" y="512" style="fill:#f85149;font-weight:600">L · 不做</text>
+      <text class="node-sub" x="780" y="528" style="font-size:11px">plugin 化 backend / 复刻单机产品线</text>
+    </svg>
+    <div class="caption">两个 S 档是"已经在线上失真的事实问题"，做了立刻收益。M/L 全是 trigger-driven，无业务推不做。</div>
   </div>
 
-  <div class="tier">
-    <span class="badge">S2 · 强烈推荐</span>
-    <span class="tcost">≈ 20–30 行 · 1 PR · 0.3 工时</span>
-    <div class="ttitle">在 MEMORY.md/SOUL.md/USER.md 顶部加结构化 frontmatter</div>
-    <div class="tsubtitle">借 Hermes 文章里"三层 SOUL.md"思路的<strong>最小版本</strong>——不分层，但在文件头声明 owner / last_updated / version。</div>
-    <div class="tbody">
-      <p><strong>做什么</strong>：在 <code>workspace/SOUL.md</code> 等文件头加 YAML frontmatter：</p>
-      <pre style="background:var(--card-2);padding:10px 14px;border-radius:4px;font-size:11.5px;overflow-x:auto"><code style="background:none;color:var(--text)">---
-managed_by: dream
-last_dream_run: 2026-05-16T03:00:00Z
-version: 42
-last_human_edit: 2026-05-09  # 人手动改过的时间
----</code></pre>
-      <p>好处：解决 Part 3 的<strong>"agent 以为自动 ≠ 实际自动"</strong>失真——agent 读 SOUL.md 时一眼能看到上次 Dream 跑的时间；如果 <code>last_dream_run</code> 是 30 天前，agent 知道这是过期 + 可能有人手改。</p>
-      <div class="filelist">
-        <span class="mod">~</span> <span class="fl">agent/nanobot/agent/memory.py</span> &nbsp; MemoryStore 读写时透传 frontmatter<br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot/templates/memory/MEMORY.md</span> &nbsp; 模板加 frontmatter 头
-      </div>
-    </div>
-  </div>
-
-  <div class="tier t-m">
-    <span class="badge">M1 · 可考虑</span>
-    <span class="tcost">≈ 200–300 行 · 2–3 PR · 1–2 工时</span>
-    <div class="ttitle">三层 SOUL.md：Org / Team / User</div>
-    <div class="tsubtitle">原文专门画了一张图（"Org SOUL → Team SOUL → User SOUL → 最终 system prompt"）。Athena 已有"全 fleet 共享 SOUL.md + 各 skin 的 skins/&lt;bot&gt;/"两层，缺最上面的 Org 层。</div>
-    <div class="tbody">
-      <p><strong>做什么</strong>：</p>
-      <ul>
-        <li>新增 <code>workspace/ORG_SOUL.md</code> —— 公司级 guardrail（不准外泄源码、合规禁词等）</li>
-        <li>当前 <code>workspace/SOUL.md</code> 视为 Team 层（Athena fleet 共享风格）</li>
-        <li><code>skins/&lt;bot&gt;/SOUL.md</code> 视为 User/Persona 层（各 skin 的个性）</li>
-        <li>在 <code>nanobot/agent/context.py</code> 的 <code>build_messages</code> 里拼接：<code>ORG → SOUL → skin SOUL → MEMORY → USER</code></li>
-      </ul>
-      <p><strong>收益 / 风险评估</strong>：收益是 governance（Org 层可独立审批合规规则），但 Athena 现在没业务需求要这层——目前所有 fleet bot 都受同一个公司管。建议<strong>只在出现"Athena 平台开始接外部租户"时才做</strong>。</p>
-      <div class="filelist">
-        <span class="add">+</span> <span class="fl">workspace/ORG_SOUL.md</span><br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot/agent/context.py</span> &nbsp; build_messages 拼接顺序<br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot/agent/memory.py</span> &nbsp; MemoryStore 加 read_org_soul()<br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot/skills/memory/SKILL.md</span> &nbsp; 告诉 agent 三层关系
-      </div>
-    </div>
-  </div>
-
-  <div class="tier t-m">
-    <span class="badge">M2 · 可考虑</span>
-    <span class="tcost">≈ 150 行 · 2 PR · 1 工时</span>
-    <div class="ttitle">用 VectorDB <code>pg_trgm</code> 给 history.jsonl 加真 trigram FTS</div>
-    <div class="tsubtitle">Hermes 用 SQLite FTS5 做中文 substring 检索；Athena 现在靠 agent 主动调 <code>grep</code> 凑合。当 history shard 多到一定量级（几千文件），<code>grep</code> 会慢、LLM 也猜不到搜什么。</div>
-    <div class="tbody">
-      <p><strong>做什么</strong>：VectorDB 是 Postgres + pgvector，建一张 <code>history_search</code> 表，<code>content text + agent_id text + ts timestamptz</code>，建 <code>gin_trgm_ops</code> 索引。Consolidator 写 jsonl 时同步 insert 一条；新增 <code>history_grep(query)</code> 工具给 agent。</p>
-      <p><strong>不做这个的理由</strong>：当前共享 workspace 量级（百级 daily shard），<code>ripgrep</code> 几十毫秒搞定，<strong>不构成瓶颈</strong>。原文也提到这是 50 用户以上才必要。Athena 13 个 bot 共享一个 workspace ≈ 等效 1 个用户的存储量。</p>
-      <div class="filelist">
-        <span class="add">+</span> <span class="fl">agent/scripts/insforge_history_search_schema.sql</span><br>
-        <span class="mod">~</span> <span class="fl">agent/nanobot/agent/memory.py</span> &nbsp; Consolidator.archive 同步 insert<br>
-        <span class="add">+</span> <span class="fl">agent/nanobot/agent/tools/history_grep.py</span>
+  <div class="tiers">
+    <div class="tier">
+      <span class="badge">S1 ★★★</span>
+      <div class="ttitle">接通 Dream system job</div>
+      <div class="meta">≈ 50-80 行 · 0.5 工时</div>
+      <div class="summary">在 <code>nanobot_server.py</code> 启动加 CronService + leader 选举（仅 athena 本体跑 Dream），仿照 <code>cli/commands.py:805-818</code>。</div>
+      <div class="files">
+        <span class="f mod">~ nanobot_server.py</span>
+        <span class="f mod">~ nanobot-fleet.json</span>
+        <span class="f mod">~ CLAUDE.md</span>
+        <span class="f add">+ tests/test_dream_leader.py</span>
       </div>
     </div>
-  </div>
 
-  <div class="tier t-l">
-    <span class="badge">L · 不建议</span>
-    <span class="tcost">≈ 1000+ 行 · 6+ PR · 1–2 周</span>
-    <div class="ttitle">把 memory backend 抽象成 plugin（honcho / mem0 / supermemory）</div>
-    <div class="tsubtitle">原文最后提到 Hermes 的 plugin 系统有 memory plugin。但<strong>这是为"个人用户自由选记忆服务"设计的</strong>——Athena 是 SaaS 后台，只用一个 VectorDB backend，没有第二个 backend 候选。</div>
-    <div class="tbody">
-      <p><strong>为什么不做</strong>：</p>
-      <ul>
-        <li>YAGNI：Athena 不需要换 backend，VectorDB 跑得好</li>
-        <li>抽象层会让 <code>memory.py</code> 增加间接调用，调试更难（参见 Athena 早先 memory pollution 教训）</li>
-        <li>真正需要替换 backend 时再做不晚——届时业务方向已明朗，抽象点也更准</li>
-      </ul>
+    <div class="tier">
+      <span class="badge">S2 ★★★</span>
+      <div class="ttitle">SOUL/USER/MEMORY 加 frontmatter</div>
+      <div class="meta">≈ 20-30 行 · 0.3 工时</div>
+      <div class="summary">在三件套头加 <code>last_dream_run / version / last_human_edit</code>，agent 一眼能识别"上次自动整理时间 vs 人手改"。</div>
+      <div class="files">
+        <span class="f mod">~ nanobot/agent/memory.py</span>
+        <span class="f mod">~ templates/memory/MEMORY.md</span>
+      </div>
     </div>
-  </div>
 
-  <div class="tier t-l">
-    <span class="badge">L · 不建议</span>
-    <span class="tcost">不可量化</span>
-    <div class="ttitle">完整复刻 Hermes 单机版（SQLite + JSONL）作为"个人用户产品线"</div>
-    <div class="tsubtitle">即"用 Athena 的代码骨架重新搭一个面向开发者本地用的 Hermes"。这是产品决策不是工程决策。</div>
-    <div class="tbody">
-      <p>原文已经说了——这<strong>本身就是另一个产品</strong>。如果真要做，应该 fork Hermes 不是改 Athena。</p>
+    <div class="tier t-m">
+      <span class="badge">M1</span>
+      <div class="ttitle">三层 Org / Team / User SOUL</div>
+      <div class="meta">≈ 200-300 行 · 1-2 工时</div>
+      <div class="summary">trigger：开始有外部租户。增加 <code>ORG_SOUL.md</code>，<code>build_messages</code> 按 Org → Team → User 顺序拼接。</div>
+      <div class="files">
+        <span class="f add">+ ORG_SOUL.md</span>
+        <span class="f mod">~ agent/context.py</span>
+        <span class="f mod">~ agent/memory.py</span>
+      </div>
+    </div>
+
+    <div class="tier t-m">
+      <span class="badge">M2</span>
+      <div class="ttitle">history.jsonl 加 pg_trgm FTS</div>
+      <div class="meta">≈ 150 行 · 1 工时</div>
+      <div class="summary">trigger：history shard 超 1000 + grep 慢到痛点。VectorDB 建 <code>history_search</code> 表 + GIN trigram 索引。</div>
+      <div class="files">
+        <span class="f add">+ insforge_history_search_schema.sql</span>
+        <span class="f add">+ agent/tools/history_grep.py</span>
+        <span class="f mod">~ Consolidator.archive</span>
+      </div>
+    </div>
+
+    <div class="tier t-l">
+      <span class="badge">L ✗</span>
+      <div class="ttitle">plugin 化 memory backend</div>
+      <div class="meta">不建议</div>
+      <div class="summary">Hermes plugin（honcho/mem0/supermemory）是为"个人用户选记忆服务"设计——Athena 是 SaaS 后台，只有一个 VectorDB backend。YAGNI。</div>
+      <div class="files">
+        <span class="f">不动任何文件</span>
+      </div>
+    </div>
+
+    <div class="tier t-l">
+      <span class="badge">L ✗</span>
+      <div class="ttitle">复刻单机 Hermes 产品线</div>
+      <div class="meta">不建议</div>
+      <div class="summary">这是产品决策不是工程决策。如果要做应该 fork Hermes，不该改 Athena。</div>
+      <div class="files">
+        <span class="f">不动任何文件</span>
+      </div>
     </div>
   </div>
 
   <!-- ============== PART 5 ============== -->
   <div class="part p5">
     <div class="pno">PART 05</div>
-    <h1 class="ptitle">风险点与执行顺序</h1>
-    <div class="ptag">动手前必读，特别是关于共享 workspace 的并发约束。</div>
+    <h1 class="ptitle">风险点 + 执行时间轴</h1>
+    <div class="ptag">动手前必读这 4 个风险，特别第一个。</div>
   </div>
 
-  <div class="risk">
-    <div class="rh">RISK · workspace 共享写入冲突</div>
-    Athena 的 workspace mount 给 13 个容器。任何"激活 Dream"的动作必须前置<strong>leader 选举</strong>，否则当 Dream Phase 2 用 LLM 增量改 MEMORY.md 时，其他 bot 在并行追加 <code>memory/YYYY-MM-DD.md</code> daily notes——文件不冲突，但 LLM 的"全局事实判断"会基于不完整的 snapshot。**必须做的最小化**：Dream 跑之前 <code>fsync</code> + 读时校验 mtime，发现期间被改过就跳过本轮，下一轮再试。
+  <div class="risks">
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> WORKSPACE 写并发</div>
+      <div class="rb">13 容器 mount 同一 workspace · 必须 <strong>leader 选举</strong>，否则 Dream Phase2 并发改 SOUL.md 出现写覆盖。最小防御：跑前 fsync + 读 mtime 校验。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> 文档失真</div>
+      <div class="rb">SKILL.md 当前承诺"Dream 自动管理 / 请勿编辑"。S1 接通前先把 SKILL.md 改成<strong>允许 agent 主动修订</strong>过期内容——打开 fallback 路径，免得"谁都没改"。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> RLS 论点不适用</div>
+      <div class="rb">原文花大篇幅讲 Postgres RLS。<strong>Athena 不是这种产品形态</strong>——所有 fleet bot 为同一团队服务，无外部租户。已有的 Python 后置 <code>agent_id</code> 过滤足够，不要画蛇添足。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> Dream LLM 成本</div>
+      <div class="rb">Dream Phase1+Phase2 都调 LLM。<strong>必须设 Sonnet (非 Opus) + 每日 1 次 + batch 上限 20</strong>。先在 dev 容器跑一周观测再上线。</div>
+    </div>
   </div>
 
-  <div class="risk">
-    <div class="rh">RISK · 文档与代码失真</div>
-    当前 <code>nanobot/skills/memory/SKILL.md</code> 告诉 agent "SOUL 由 Dream 自动管理 / 请勿编辑"，但实际 Dream 没跑。若 Dream 接通前发布报告或开放 agent 编辑，agent 会按 SKILL.md 的指示<em>不去维护 SOUL.md</em>——结果谁都没改。S1 接通 Dream 前，建议先把 SKILL.md 改成 <em>"如果你看到 SOUL/USER 内容明显过期/错误，请用 edit_file 直接修正"</em>，把 fallback 路径打开。
+  <div class="fig">
+    <div class="fig-title">执行时间轴 · 推荐顺序</div>
+    <svg viewBox="0 0 1000 280" width="1000">
+      <!-- 主轴 -->
+      <line x1="60" y1="120" x2="940" y2="120" stroke="#3a4256" stroke-width="2"/>
+
+      <!-- 节点 1 -->
+      <circle cx="120" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="120" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">1</text>
+      <text class="node-sub" x="120" y="80" style="font-size:11px;font-weight:600">S2 frontmatter</text>
+      <text class="node-sub" x="120" y="158">0.3 工时</text>
+      <text class="node-sub" x="120" y="173" style="font-size:9.5px">三件套头加 yaml</text>
+
+      <!-- 节点 2 -->
+      <circle cx="240" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="240" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">2</text>
+      <text class="node-sub" x="240" y="80" style="font-size:11px;font-weight:600">SKILL.md 开 fallback</text>
+      <text class="node-sub" x="240" y="158">同 PR</text>
+      <text class="node-sub" x="240" y="173" style="font-size:9.5px">允许 agent 主动修</text>
+
+      <!-- 节点 3 -->
+      <circle cx="380" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="380" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">3</text>
+      <text class="node-sub" x="380" y="80" style="font-size:11px;font-weight:600">S1 接通 Dream cron</text>
+      <text class="node-sub" x="380" y="158">0.5 工时 · 新 PR</text>
+      <text class="node-sub" x="380" y="173" style="font-size:9.5px">leader=athena</text>
+
+      <!-- 节点 4 -->
+      <circle cx="520" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="520" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">4</text>
+      <text class="node-sub" x="520" y="80" style="font-size:11px;font-weight:600">修 CLAUDE.md</text>
+      <text class="node-sub" x="520" y="158">同 PR</text>
+      <text class="node-sub" x="520" y="173" style="font-size:9.5px">删过期"dead code"段</text>
+
+      <!-- 节点 5 -->
+      <circle cx="660" cy="120" r="22" class="warn-fill"/>
+      <text class="node-text" x="660" y="124" style="font-weight:700;fill:#d29922;font-size:13px">5</text>
+      <text class="node-sub" x="660" y="80" style="font-size:11px;font-weight:600">观察 2 周</text>
+      <text class="node-sub" x="660" y="158">—</text>
+      <text class="node-sub" x="660" y="173" style="font-size:9.5px">成本 + 修订质量</text>
+
+      <!-- 节点 6 -->
+      <circle cx="800" cy="120" r="22" class="warn-fill"/>
+      <text class="node-text" x="800" y="124" style="font-weight:700;fill:#d29922;font-size:13px">6</text>
+      <text class="node-sub" x="800" y="80" style="font-size:11px;font-weight:600">M1 三层 SOUL</text>
+      <text class="node-sub" x="800" y="158">业务触发</text>
+      <text class="node-sub" x="800" y="173" style="font-size:9.5px">外部租户进来后</text>
+
+      <!-- 节点 7 -->
+      <circle cx="920" cy="120" r="22" fill="#1c2230" stroke="#7d8590" stroke-width="1.5"/>
+      <text class="node-text" x="920" y="124" style="font-weight:700;fill:#7d8590;font-size:13px">7</text>
+      <text class="node-sub" x="920" y="80" style="font-size:11px;font-weight:600">M2 trigram FTS</text>
+      <text class="node-sub" x="920" y="158">痛点触发</text>
+      <text class="node-sub" x="920" y="173" style="font-size:9.5px">grep 慢之后</text>
+
+      <!-- 阶段标 -->
+      <text class="label-strong" x="290" y="225" style="fill:#3fb950;font-size:13px">第 1 PR · 同时做</text>
+      <text class="node-sub" x="290" y="242" style="font-size:11px">0.4 工时</text>
+      <line x1="80" y1="200" x2="500" y2="200" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <text class="label-strong" x="660" y="225" style="fill:#3fb950;font-size:13px">第 2 PR</text>
+      <text class="node-sub" x="660" y="242" style="font-size:11px">0.5 工时</text>
+      <line x1="520" y1="200" x2="800" y2="200" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <text class="label-strong" x="860" y="225" style="fill:#d29922;font-size:13px">可选 · trigger 驱动</text>
+      <line x1="820" y1="200" x2="940" y2="200" stroke="#d29922" stroke-width="1.5" stroke-dasharray="4,3"/>
+    </svg>
+    <div class="caption">推荐节奏：第一个 PR 做 1+2+3+4 (≈ 0.9 工时)，观察 2 周；M1/M2 只在有触发条件时再做。</div>
   </div>
-
-  <div class="risk">
-    <div class="rh">RISK · Hermes 的 RLS 论点不适用 Athena</div>
-    原文花了很多篇幅讲 Postgres RLS（按 <code>team_id</code> 行级隔离）。<strong>Athena 不是这种产品形态</strong>——所有 fleet bot 都为同一个 The Company 团队服务，没有外部租户。已有的 Python 后置 <code>agent_id == AGENT_ID</code> 过滤足够。<strong>不要</strong>误读原文然后给 VectorDB 加一层根本用不上的 RLS——抽象成本远大于收益。
-  </div>
-
-  <div class="risk">
-    <div class="rh">RISK · Dream 的 LLM 成本</div>
-    Dream Phase 1 + Phase 2 都调 LLM，每次 Phase 2 是 multi-iteration AgentRunner（最多 10 轮，每轮可能 16K chars 工具输出）。<strong>必须配 LLM 模型 + 频率上限</strong>：用 Sonnet 而不是 Opus、每日最多 1 次、单次 batch 上限 20 entries（已是 <code>Dream.max_batch_size</code> 默认值）。先在 dev fleet 跑一周观测成本再上线。
-  </div>
-
-  <h3>建议执行顺序</h3>
-
-  <table>
-    <thead><tr><th style="width:8%">阶段</th><th style="width:24%">动作</th><th style="width:14%">工作量</th><th>验证标准</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><span class="pill green">1</span></td>
-        <td>S2 — 加 frontmatter（含 <code>last_dream_run</code>）</td>
-        <td>0.3 工时 · 1 PR</td>
-        <td>SOUL.md/USER.md/MEMORY.md 头部能看到 yaml；现有 agent 行为不变</td>
-      </tr>
-      <tr>
-        <td><span class="pill green">2</span></td>
-        <td>把 SKILL.md 的 fallback 打开（Dream 没跑时允许 agent 直接修订）</td>
-        <td>0.1 工时 · 同 PR</td>
-        <td>agent 在 SOUL.md 过期时能自主修订</td>
-      </tr>
-      <tr>
-        <td><span class="pill green">3</span></td>
-        <td>S1 — 接通 Dream system job（leader = Athena）</td>
-        <td>0.5 工时 · 1 PR</td>
-        <td>Athena 容器 <code>.dream_cursor</code> mtime 每天推进；skin-bot 上不推进；MEMORY.md 在每周对账后内容明显有 Dream 修订痕迹</td>
-      </tr>
-      <tr>
-        <td><span class="pill green">4</span></td>
-        <td>修订 CLAUDE.md "Dead code"段落</td>
-        <td>0.1 工时 · 同 PR</td>
-        <td>文档与代码一致</td>
-      </tr>
-      <tr>
-        <td><span class="pill yellow">5</span></td>
-        <td>观察 2 周，统计 Dream 成本 + 修订质量</td>
-        <td>—</td>
-        <td>UsageMeter 报告 Dream 成本占比；人工抽查 5 次 Phase 2 修订</td>
-      </tr>
-      <tr>
-        <td><span class="pill yellow">6 (可选)</span></td>
-        <td>M1 — 加 Org 层 SOUL（如有外部租户进来）</td>
-        <td>1–2 工时 · 2 PR</td>
-        <td>build_messages 拼出三层；新 skin 部署不需要碰 ORG_SOUL.md</td>
-      </tr>
-      <tr>
-        <td><span class="pill muted">7 (按需)</span></td>
-        <td>M2 — trigram FTS（如 grep 慢到痛点）</td>
-        <td>1 工时 · 2 PR</td>
-        <td><code>history_grep</code> 工具 P95 &lt; 100ms</td>
-      </tr>
-    </tbody>
-  </table>
 
   <div class="lead" style="border-left-color:var(--cyan);margin-top:24px">
-    <strong>最后总结</strong>：原文真正的价值不是"教你怎么做团队版"，而是把"单机自洽设计"和"团队/SaaS 必需件"<em>梯度展示</em>——Athena 已经踩在团队侧的山顶，从这个山顶反看 Hermes，<strong>可借用的只有它没换掉的那部分</strong>：prompt 工程三件套、技能系统、自演化。三块 Athena 都有对应件，且<em>大部分代码就在仓库里只是没接通</em>。最小有效移植 = 接通 Dream + 加 frontmatter，不到 100 行 + 1 个 PR。其余的"团队版底座"是 Hermes 要追上 Athena 的方向，不是 Athena 要追上 Hermes 的方向。
+    <strong>整篇结论</strong>：原文不是"团队版蓝图"——它是"反证团队版需要换底座"。Athena 已经踩在团队侧的山顶。从这个山顶往回看 Hermes，<em>能搬的只剩三块「与存储无关」的核心</em>。Athena 这边①② 全部齐活，③ 的代码（Consolidator + Dream 共 600 行）也在仓库里，<strong>只是 fleet 启动路径漏接了 cron 注册</strong>——加 leader 选举 + 注册 cron job ≈ 不到 100 行就把"自演化"真正接通。其它 M/L 全是触发驱动，无业务推不做。
   </div>
 
   <!-- ============== REFERENCES ============== -->
@@ -523,7 +841,7 @@ last_human_edit: 2026-05-09  # 人手动改过的时间
     <h3>引用与延伸</h3>
     <ul>
       <li>原文：<a href="https://ihoooohi.github.io/garden/tech/hermes-team-deployment/" target="_blank">如果 Hermes 给团队用——从 SQLite 到 Postgres 的架构推演</a></li>
-      <li>Athena fleet 清单：<code>agent/nanobot-fleet.json</code>（13 bots · EC2 <code>i-c</code>）</li>
+      <li>Athena fleet 清单：<code>agent/nanobot-fleet.json</code>（13 bots · EC2 <code>i-...c</code>）</li>
       <li>核心代码：<code>agent/nanobot/agent/memory.py:31 / 444 / 632</code>（MemoryStore / Consolidator / Dream）</li>
       <li>没接通的连线：CLI <code>nanobot/cli/commands.py:805-818</code> vs fleet <code>nanobot_server.py</code></li>
       <li>Athena 共享 workspace 与 Compaction Hook：<code>agent/CLAUDE.md</code>（注意它对 Dream 的标注已过期）</li>
