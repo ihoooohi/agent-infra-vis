@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Vio 视频自动质检 · 功能与数据流</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --border:#30363d;
+    --fg:#e6edf3; --muted:#8b949e; --accent:#58a6ff; --green:#3fb950;
+    --orange:#d29922; --red:#f85149; --purple:#bc8cff; --yellow:#ffd33d;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;font:14.5px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:var(--bg);color:var(--fg);padding:28px 36px;max-width:1100px;margin:0 auto;
+  }
+  h1{font-size:30px;margin:0 0 4px;border-bottom:1px solid var(--border);padding-bottom:14px}
+  h2{font-size:22px;margin:40px 0 14px;color:var(--accent);border-left:4px solid var(--accent);padding-left:12px}
+  h3{font-size:18px;margin:26px 0 10px;color:var(--purple)}
+  h4{font-size:15px;margin:18px 0 8px;color:var(--orange)}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  .meta{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:16px 0}
+  .panel2{background:var(--panel2)}
+  .lead{font-size:16px;line-height:1.85}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+  .pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:99px;background:#21262d;border:1px solid var(--border);color:var(--muted);margin:0 6px 2px 0}
+  .pill.green{background:#0f3b25;color:#7ee2a8;border-color:#1f6f44}
+  .pill.red{background:#3b0f0f;color:#ff9a9a;border-color:#6b1f1f}
+  .pill.orange{background:#3b2a0f;color:#f6c970;border-color:#7a571a}
+  .pill.blue{background:#0f2240;color:#9ec8ff;border-color:#1f4a8a}
+  .pill.purple{background:#2a1740;color:#caa6ff;border-color:#5a2fa8}
+  table{border-collapse:collapse;width:100%;margin:12px 0}
+  th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top;font-size:13.5px;line-height:1.65}
+  th{background:#1c2330;color:var(--accent);font-weight:600}
+  tr:nth-child(even) td{background:#11161d}
+  .mermaid{background:#0e1320;border:1px solid var(--border);border-radius:10px;padding:14px;margin:14px 0;text-align:center}
+  .role{border-left:3px solid var(--accent);background:#0e1820;padding:12px 16px;margin:10px 0;border-radius:0 8px 8px 0}
+  .role h4{margin-top:0;color:var(--accent)}
+  .step{border-left:3px solid var(--purple);background:#1a1224;padding:12px 18px;margin:14px 0;border-radius:0 8px 8px 0}
+  .step .stepnum{font-size:24px;font-weight:700;color:var(--purple);margin-right:10px;display:inline-block;vertical-align:middle}
+  .step .steptitle{font-size:17px;font-weight:600;vertical-align:middle}
+  .evidence{border-left:3px solid var(--green);background:#0e1f17;padding:12px 16px;margin:10px 0;font-size:13.5px;border-radius:0 8px 8px 0}
+  .warn{border-left:3px solid var(--orange);background:#1e1a0e;padding:12px 16px;margin:10px 0;font-size:13.5px;border-radius:0 8px 8px 0}
+  .danger{border-left:3px solid var(--red);background:#1e0e0f;padding:12px 16px;margin:10px 0;font-size:13.5px;border-radius:0 8px 8px 0}
+  .toc{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;margin-bottom:20px;font-size:13.5px}
+  .toc ol{margin:8px 0 0;padding-left:22px;line-height:2}
+  blockquote{border-left:3px solid var(--muted);padding:6px 14px;color:var(--muted);margin:14px 0;font-style:italic;background:#11161d;border-radius:0 8px 8px 0}
+</style>
+</head>
+<body>
+
+<h1>Vio 视频自动质检 · 功能与数据流</h1>
+<div class="meta">
+  目标读者：想知道这套系统在<strong>业务上做什么</strong>、视频<strong>怎么从输入流到输出</strong>的人。 ·
+  不包含代码细节。
+</div>
+
+<div class="toc">
+<strong>目录</strong>
+<ol>
+  <li><a href="#what">这是一套什么系统 · 一句话定位</a></li>
+  <li><a href="#why">解决什么业务问题</a></li>
+  <li><a href="#roles">系统里的"角色"</a></li>
+  <li><a href="#journey">一条视频的完整旅程</a></li>
+  <li><a href="#dual">两套质检员并存的过渡期</a></li>
+  <li><a href="#data">数据形态的变化（视频 → 凭据 → 判决 → 卡片）</a></li>
+  <li><a href="#design">关键的功能设计思路</a></li>
+  <li><a href="#today">今天它跑成什么样</a></li>
+  <li><a href="#history">演进过程里的几次"业务事件"</a></li>
+</ol>
+</div>
+
+<!-- ─── 1. 一句话定位 ─────────────────────────────── -->
+<h2 id="what">1 · 一句话定位</h2>
+
+<div class="panel lead">
+  这是一个 <strong>AI 自动质检员</strong>，专门看 <strong>创作者交的广告视频</strong>，
+  按 <strong>品牌方的"合格标准"</strong> 出一份判决：
+  <span class="pill green">合格通过</span>
+  <span class="pill red">不合格</span>
+  <span class="pill orange">需要人工再看</span>，
+  并把判决和"为什么"实时贴到品牌方的<strong>审核后台</strong>。
+</div>
+
+<!-- ─── 2. 解决什么问题 ─────────────────────────────── -->
+<h2 id="why">2 · 它解决什么业务问题</h2>
+
+<div class="panel">
+品牌方做 UGC 广告投放时，每天会收到几百条来自不同创作者的视频投稿。问题是：
+
+<ul>
+  <li>纯人工看完每条要 5-10 分钟，<strong>慢</strong>，运营团队顶不住量</li>
+  <li>明显不合格的稿件（产品演示不正常、说错品牌名、出现错别字、用了竞品名）<strong>大量重复出现</strong>，是浪费时间</li>
+  <li>每个品牌的"合格标准"不一样，<strong>需要可配置</strong>，不能写死</li>
+  <li>结果要<strong>原因可见</strong>：管理员要看到"为什么 AI 拒了这条"，否则没法对创作者反馈</li>
+</ul>
+
+所以这套系统的产品目标是：
+<blockquote>创作者刚提交完，<strong>30 秒到一分钟内</strong>就有一份带证据的 AI 初审结果送到品牌方后台，
+帮人筛掉明显不合格的，让人只看模棱两可的那部分。</blockquote>
+</div>
+
+<!-- ─── 3. 角色 ─────────────────────────────── -->
+<h2 id="roles">3 · 系统里的"角色"</h2>
+
+<p>把这套系统想成一个<strong>视频审核车间</strong>，里面有以下角色：</p>
+
+<div class="grid2">
+  <div class="role">
+    <h4>📱 创作者（系统外部）</h4>
+    在 mobile-app 上传视频，按"提交"。然后等结果。
+  </div>
+
+  <div class="role">
+    <h4>👔 品牌方运营 / 管理员（系统外部）</h4>
+    打开后台审核界面，看 AI 出的初审，做最终决策（通过 / 退回创作者改 / 拒绝）。
+    也会维护本品牌的<strong>合格标准手册</strong>。
+  </div>
+
+  <div class="role">
+    <h4>📋 派单员</h4>
+    每当有新视频提交进来，第一时间决定 "<strong>这条该送给哪个审核员？</strong>"
+    依据是品牌方的运行档（新版还是老版）。
+  </div>
+
+  <div class="role">
+    <h4>🛂 传话筒（网关）</h4>
+    所有外部送过来的"请审核"指令，都要经过传话筒。它做两件事：
+    ① <strong>验明正身</strong>（这条指令是不是真的从我们自己数据库发的，不是黑客伪造的）；
+    ② <strong>找对车间</strong>（要送给 A 品牌的审核员，不送给 B 品牌的）。
+  </div>
+
+  <div class="role">
+    <h4>📚 规则手册（"视频偏好"）</h4>
+    每个品牌一本，列着 "什么算合格"。例如：
+    <ul style="margin:6px 0">
+      <li>产品演示必须真的能用，不能是错误界面</li>
+      <li>不能说 "free / 免费"</li>
+      <li>不能出现竞品名字</li>
+      <li>品牌名拼写要对</li>
+      <li>画面里不能有错别字</li>
+      <li>最短 5 秒，要有剪辑</li>
+    </ul>
+    管理员随时能改，<strong>改完下一次审核就生效</strong>，不用重启。
+  </div>
+
+  <div class="role">
+    <h4>👀 眼睛 A · 屏幕识字员</h4>
+    把视频切成几张关键帧，<strong>逐帧抠出画面上所有出现过的文字</strong>
+    （字幕、标题、品牌 logo 上的字、按钮文案……）。
+    输出一份"画面文字清单"。
+    <br><br>
+    它存在的意义：让"眼睛 B"在判断错别字、品牌名拼写时<strong>有客观依据</strong>，
+    不再凭"看起来像"猜。
+  </div>
+
+  <div class="role">
+    <h4>🧠 眼睛 B · 视频理解大脑</h4>
+    把整段视频"读"进脑子（画面 + 音频），<strong>对照规则手册逐条判</strong>，
+    每条规则给一个 PASS/FAIL/不确定，并写下证据（"在 0:08 看到 app 闪退弹窗"）。
+  </div>
+
+  <div class="role">
+    <h4>🏷️ 回单台</h4>
+    拿到大脑的报告后，做两件事：
+    ① 在<strong>审核凭据</strong>上盖章（合格 / 不合格 + 完整报告），
+    ② 在<strong>评审时间线</strong>上贴一条 AI 卡片（让运营在 timeline 里也能看到）。
+  </div>
+
+  <div class="role">
+    <h4>📺 展示窗（管理后台）</h4>
+    品牌方运营打开 admin 后台，
+    <strong>左侧</strong>看每条视频的"AI 卡片"（pass/fail 总览），
+    <strong>右侧时间线</strong>看 AI 详细评语 + 哪几条规则没过 + 改进建议。
+  </div>
+
+  <div class="role">
+    <h4>🎫 任务调度官</h4>
+    在后台默默盯着所有审核任务。负责：
+    <ul style="margin:6px 0">
+      <li><strong>不重复审</strong>：同一条视频不会被并发审两遍</li>
+      <li><strong>失败自动重试</strong>：网络抖一下导致下载失败，会重来</li>
+      <li><strong>超时管控</strong>：一条 6 分钟还没出结果就强行终止，标记失败</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ─── 4. 一条视频的旅程 ─────────────────────────────── -->
+<h2 id="journey">4 · 一条视频的完整旅程</h2>
+
+<p>下面这张图，画的是<strong>一条视频从被提交到出现 AI 判决</strong>的全过程。
+没有代码层细节，全是业务动作。</p>
+
+<div class="mermaid">
+flowchart TD
+    A["📱 创作者上传视频<br/>点'提交'"] --> B
+    B["数据库里出现一条'待审凭据'<br/>状态=待审"] --> C
+    C{"📋 派单员判断<br/>这是哪个品牌？"}
+    C -- "Manus 品牌" --> D1["送给新审核员"]
+    C -- "其他 21 个品牌" --> D2["送给老审核员"]
+
+    D1 --> E1["🛂 传话筒验签 + 找对应车间"]
+    E1 --> F1["新审核员开始工作"]
+    F1 --> G1["📚 翻规则手册<br/>(本品牌专属 11+ 条)"]
+    G1 --> H1["⬇️ 下载视频到本地工作台"]
+    H1 --> I1["同时启动两只眼睛"]
+    I1 --> J1["👀 眼睛 A 抠画面文字"]
+    I1 --> K1["🧠 眼睛 B 读视频内容"]
+    J1 --> L1["合并：大脑结合画面文字<br/>对照规则逐条判"]
+    K1 --> L1
+    L1 --> M1["汇总总判决<br/>+ 每条规则的证据"]
+
+    D2 --> F2["老审核员开始工作<br/>(固定 4 条通用规则,<br/>不用眼睛 A)"]
+    F2 --> M2["出 4 维度判决"]
+
+    M1 --> N["🏷️ 回单台·两次写回"]
+    M2 --> N
+    N --> N1["在审核凭据上盖章<br/>合格/不合格 + 完整报告"]
+    N --> N2["在时间线贴 AI 卡片"]
+    N1 --> O["📺 品牌方运营立即看到结果"]
+    N2 --> O
+    O --> P["👔 运营决定: 通过 / 退回让改 / 拒绝"]
+
+    style A fill:#1f6f44,stroke:#3fb950,color:#fff
+    style C fill:#5a2fa8,stroke:#bc8cff,color:#fff
+    style D1 fill:#1f4a8a,stroke:#58a6ff,color:#fff
+    style D2 fill:#7a571a,stroke:#d29922,color:#fff
+    style O fill:#1f6f44,stroke:#3fb950,color:#fff
+    style P fill:#0f3b25,stroke:#7ee2a8,color:#fff
+</div>
+
+<h3>4.1 新审核员内部 5 步走（重点）</h3>
+
+<div class="step">
+  <span class="stepnum">1</span><span class="steptitle">翻规则手册</span>
+  <p style="margin:6px 0 0">先去仓库取这个品牌的<strong>视频偏好手册</strong>。
+  如果管理员之前在后台用了"配置化"模式，手册从数据库里读；否则从共享文件库里读 markdown 版本。
+  <br>这一步的关键设计：<strong>每次审核都重新读手册</strong>，所以管理员改完规则下次审核立刻生效。</p>
+</div>
+
+<div class="step">
+  <span class="stepnum">2</span><span class="steptitle">下载视频到本地</span>
+  <p style="margin:6px 0 0">视频原本存在云端对象存储里。审核员把它<strong>拉到自己机器</strong>，
+  因为下面两只眼睛都要"看"这个文件。下载完后审核员马上把状态从"待审"改成"正在审"，让前台运营能看到进度。</p>
+</div>
+
+<div class="step">
+  <span class="stepnum">3</span><span class="steptitle">两只眼睛同时看（并行）</span>
+  <div class="grid2" style="margin-top:8px">
+    <div>
+      <strong>👀 眼睛 A · 屏幕识字员</strong>
+      <p style="margin:4px 0">从视频里抽 5-8 帧关键画面，每张图请求"识字 API"抠出文字。
+      最后输出一份 <strong>去重后的画面文字清单</strong>，例如：
+      <code>["Manus AI", "Buy now", "TikTok shop", "macOS"]</code></p>
+    </div>
+    <div>
+      <strong>🧠 眼睛 B · 视频理解大脑</strong>
+      <p style="margin:4px 0">把整段视频上传给"大脑服务"，等它<strong>准备好</strong>（视频要转码、索引）
+      。这一步通常要 20-30 秒，是单条审核里最慢的环节。</p>
+    </div>
+  </div>
+  <p style="margin:8px 0 0">⚡ <strong>为什么并行</strong>：两件事都需要本地文件，但谁先谁后无所谓。
+  并起来跑总时间 = max(A, B)，串起来 = A+B。整条 review 因此能压到 40 秒以内。</p>
+</div>
+
+<div class="step">
+  <span class="stepnum">4</span><span class="steptitle">大脑逐条判规则</span>
+  <p style="margin:6px 0">把规则手册 + 画面文字清单 + 品牌信息（品牌名、竞品列表）<strong>一起喂给大脑</strong>，
+  让它对每条规则给一个判决：</p>
+  <table style="font-size:13px">
+  <thead><tr><th>规则</th><th>判决</th><th>证据（大脑写的）</th></tr></thead>
+  <tbody>
+  <tr><td>产品演示必须能用</td><td><span class="pill green">PASS</span></td><td>0:05-0:12 演示了完整功能，无错误</td></tr>
+  <tr><td>不能说 "free"</td><td><span class="pill green">PASS</span></td><td>音频和画面都未出现</td></tr>
+  <tr><td>不能出现竞品名</td><td><span class="pill red">FAIL</span></td><td>0:23 字幕出现了"ChatGPT"，属于竞品</td></tr>
+  <tr><td>品牌名拼写正确</td><td><span class="pill green">PASS</span></td><td>0:02 标题"Manus AI"与品牌一致</td></tr>
+  <tr><td>不能有错别字</td><td><span class="pill green">PASS</span></td><td>对照画面文字清单未发现拼写错误</td></tr>
+  <tr><td>最短 5 秒</td><td><span class="pill green">PASS</span></td><td>视频时长 18 秒</td></tr>
+  </tbody>
+  </table>
+  <p style="margin:8px 0 0"><strong>关键依赖眼睛 A</strong>：如果只有眼睛 B，它判错别字时容易"凭语感"猜错（
+  把 "TikTok"、"macOS"、"ecommerce" 这种正确的专有名词误判为错别字）。给了眼睛 A 的清单作"对照表"之后，
+  错别字误判减少了 5 倍。</p>
+</div>
+
+<div class="step">
+  <span class="stepnum">5</span><span class="steptitle">汇总总判决 + 回单</span>
+  <p style="margin:6px 0">把每条规则的 PASS/FAIL 拼成总判决：</p>
+  <ul style="margin:6px 0">
+    <li>任何一条 FAIL → <span class="pill red">REJECTED 整片拒</span></li>
+    <li>全部 PASS → <span class="pill green">APPROVED 整片过</span></li>
+    <li>有 "不确定" 的 → <span class="pill orange">NEEDS_REVIEW 转人工</span></li>
+  </ul>
+  <p style="margin:6px 0"><strong>回单台</strong>同时写两个地方：
+  ① 审核凭据盖章（含完整每条规则的判决和证据）；
+  ② 在评审时间线贴一张<strong>带 emoji 和分组的 AI 卡片</strong>（哪些没过 / 哪些需要人工 / 哪些过了）。</p>
+</div>
+
+<!-- ─── 5. 双轨制 ─────────────────────────────── -->
+<h2 id="dual">5 · 为什么有两套审核员并存</h2>
+
+<div class="panel">
+这是<strong>渐进迁移期</strong>的产物：新系统设计好之后，没法一夜之间把全部 22 个品牌切过来，
+所以让两套并行，新品牌（Manus）先上新审核员当试点，跑稳之后再把其他品牌一个个迁过去。
+</div>
+
+<table>
+<thead><tr><th>对比维度</th><th>👴 老审核员</th><th>🆕 新审核员</th></tr></thead>
+<tbody>
+<tr><td>当前服务谁</td>
+  <td>21 个品牌（默认路径）</td>
+  <td>Manus 1 个（试点）</td></tr>
+<tr><td>规则数</td>
+  <td>4 条，写死</td>
+  <td>11+ 条，每个品牌一本，可自配</td></tr>
+<tr><td>规则话题</td>
+  <td>有没有标题文字、有没有字幕、品牌名对不对、有没有 CTA</td>
+  <td>产品演示真伪、读稿、音频清晰度、避说 free、避竞品、品牌名、错别字、时长、安全区、剪辑感……</td></tr>
+<tr><td>带眼睛 A（屏幕识字员）</td>
+  <td>❌ 没有</td>
+  <td>✅ 有，错别字误判少 5 倍</td></tr>
+<tr><td>多品牌隔离</td>
+  <td>❌ 一个审核员通吃所有品牌</td>
+  <td>✅ 每个品牌一个独立审核员，互不干扰</td></tr>
+<tr><td>结果丰富度</td>
+  <td>4 条 true/false + 简短理由</td>
+  <td>3 态总判决 + 11+ 条逐条判决 + 每条带证据 + 总结一句话</td></tr>
+<tr><td>失败暴露</td>
+  <td>看不出来失败原因</td>
+  <td>下载/读视频/出报告任一阶段失败都<strong>明确写"失败 + 为什么"</strong>，运营立刻看到</td></tr>
+<tr><td>规则改了多久生效</td>
+  <td>得改代码 + 部署</td>
+  <td>管理员后台改完，<strong>下一条视频立即生效</strong></td></tr>
+</tbody>
+</table>
+
+<p>派单员的判断逻辑很简单：<strong>看品牌方在数据库里有没有"启用新审核员"的开关</strong>。
+开了 → 新；没开 → 老。所以业务上的迁移操作就是 "把这个品牌的开关打开"。</p>
+
+<!-- ─── 6. 数据形态变化 ─────────────────────────────── -->
+<h2 id="data">6 · 数据形态的变化</h2>
+
+<p>一条视频在整个旅程里，<strong>身份证从一种形态变成另一种</strong>。下面这张图描述这个变化：</p>
+
+<div class="mermaid">
+flowchart LR
+    V["🎥 视频文件<br/>云端 mp4"]
+    P["🪪 待审凭据<br/>(刚出生)<br/>状态: pending"]
+    P2["🪪 审核中凭据<br/>状态: processing"]
+    R["📋 内部报告<br/>每条规则的<br/>PASS/FAIL + 证据"]
+    C["🏷️ 审核凭据 (完整)<br/>状态: completed<br/>含: 总判决 +<br/>详细报告 + OCR 清单"]
+    L["💬 时间线评语卡片<br/>'🤖 AI Video Review<br/>Verdict: ❌ REJECTED<br/>8/11 passed'"]
+    UI["📺 后台显示<br/>左: 卡片 / 右: 时间线"]
+
+    V --> P
+    P --> P2
+    P2 -.->|"审核车间内部"| R
+    R --> C
+    R --> L
+    C --> UI
+    L --> UI
+
+    style V fill:#1f4a8a,stroke:#58a6ff,color:#fff
+    style P fill:#7a571a,stroke:#d29922,color:#fff
+    style P2 fill:#5a2fa8,stroke:#bc8cff,color:#fff
+    style C fill:#1f6f44,stroke:#3fb950,color:#fff
+    style L fill:#1f6f44,stroke:#3fb950,color:#fff
+    style UI fill:#0f3b25,stroke:#7ee2a8,color:#fff
+</div>
+
+<h3>6.1 每种形态承载的信息</h3>
+
+<table>
+<thead><tr><th>形态</th><th>承载什么</th><th>谁能看</th></tr></thead>
+<tbody>
+<tr><td>🎥 视频文件</td>
+  <td>原始素材，存在云端</td>
+  <td>创作者上传时产生</td></tr>
+<tr><td>🪪 待审凭据</td>
+  <td>视频 id、提交 id、关联品牌、关联活动；状态 = 待审</td>
+  <td>审核中台、品牌方运营（看到"AI 处理中"）</td></tr>
+<tr><td>🪪 审核中凭据</td>
+  <td>同上，状态 = 正在审；前台 UI 出现 spinner</td>
+  <td>同上</td></tr>
+<tr><td>📋 内部报告</td>
+  <td>每条规则的 PASS/FAIL/不确定 + 证据；总判决；OCR 抠出来的文字清单；视频时长；本次用的规则版本号</td>
+  <td>暂时只在审核员内存里，准备写回</td></tr>
+<tr><td>🏷️ 完整审核凭据</td>
+  <td>= 内部报告 + 老版兼容的 4 个布尔值（让老的 UI 也能用） + 模型名 + 完成时间</td>
+  <td>品牌方管理后台的"AI 审核卡片"区直接读</td></tr>
+<tr><td>💬 时间线评语卡片</td>
+  <td>用 markdown 写的人话评语：哪些没过、为什么没过、哪些过了、改进建议链接</td>
+  <td>评审时间线 UI 直接显示</td></tr>
+</tbody>
+</table>
+
+<p>关键的产品设计点：<strong>为了不破坏老 UI</strong>，新审核员的报告里<strong>额外包了一份"假装是老格式"的小总结</strong>
+（旧版的 4 个布尔值 + 4 段理由），这样旧版做的"卡片"页面无需改造也能展示新结果。
+其他新增字段则给新版页面用。</p>
+
+<!-- ─── 7. 关键设计思路 ─────────────────────────────── -->
+<h2 id="design">7 · 关键的功能设计思路</h2>
+
+<div class="grid2">
+  <div class="panel">
+    <h4>① 品牌隔离</h4>
+    每个品牌有自己的：
+    <ul style="margin:6px 0">
+      <li>独立审核员（独立容器、独立任务队列）</li>
+      <li>独立规则手册</li>
+      <li>独立排队序列</li>
+    </ul>
+    A 品牌再忙也不会拖累 B 品牌的审核速度，A 的规则也不会被错套到 B 的视频上。
+  </div>
+
+  <div class="panel">
+    <h4>② 失败要让人看见</h4>
+    审核过程任何一步出问题（下载失败、规则手册被删、大脑超时），<strong>不能假装通过</strong>，
+    要把审核凭据状态改成"失败 + 具体原因"。
+    <br><br>
+    背后的产品价值：管理员看到"失败"会去查原因（手册没填好、视频损坏、AI 服务挂了），
+    而看到"通过"会信任结论。所以"假装通过"是<strong>最有破坏力的 bug</strong>。
+  </div>
+
+  <div class="panel">
+    <h4>③ 不重不漏</h4>
+    数据库层有<strong>唯一约束</strong>：同一条视频在 AI 评语区只能有一条记录；重新审核会覆盖旧的，不会堆。
+    <br>
+    任务队列层有<strong>并发锁</strong>：同一条审核请求同时只允许一个审核员处理，防触发器抖动或管理员"重新审"按钮被连按。
+  </div>
+
+  <div class="panel">
+    <h4>④ 凭据进车间要验签</h4>
+    传话筒（网关）只接<strong>来自我们自己数据库的合法触发</strong>。
+    每次触发都带一个 60 秒内有效的签名，验不过就 401 打回去。
+    防：被外面伪造的"假视频"塞进来浪费 AI 算力。
+  </div>
+
+  <div class="panel">
+    <h4>⑤ 规则热改</h4>
+    规则手册存在一个所有审核员都能看到的共享文件库里。<strong>管理员改完，下一条新视频审核立刻用新规则</strong>，
+    不用重启服务、不用走发布。
+  </div>
+
+  <div class="panel">
+    <h4>⑥ 老版本兼容</h4>
+    新审核员的报告里塞了一份"假装老格式"的小总结。这意味着<strong>后台 UI 不用改一行代码</strong>，
+    新版结果也能展示。新功能（11 条详细规则、总判决、OCR 清单）走新字段，老 UI 不读它们。
+    迁移成本因此极低。
+  </div>
+</div>
+
+<!-- ─── 8. 今天它跑成什么样 ─────────────────────────────── -->
+<h2 id="today">8 · 今天它跑成什么样（实测）</h2>
+
+<div class="evidence">
+<strong>实测结果（过去 24 小时）：</strong> Manus 品牌的新审核员收到过<strong>多条真实创作者投稿</strong>。
+随手取两条：
+<ul style="margin:8px 0">
+  <li>一条视频审核耗时 <strong>37 秒</strong>，结果 <span class="pill red">REJECTED</span>，
+      审核凭据 ✅ 已盖章，时间线 ✅ 已贴评语。</li>
+  <li>另一条视频审核耗时 <strong>42 秒</strong>，结果 <span class="pill red">REJECTED</span>，
+      凭据 ✅ 已盖章，评语 ✅ 已贴。</li>
+</ul>
+端到端没有任何环节失败，从触发到 admin UI 看到结果只用 1 分钟。
+</div>
+
+<div class="panel">
+<h4>性能拆解（这 40 秒花在哪？）</h4>
+<table>
+<thead><tr><th>动作</th><th>大致耗时</th><th>是否可并行</th></tr></thead>
+<tbody>
+<tr><td>翻规则手册</td><td>&lt; 1 秒</td><td>—</td></tr>
+<tr><td>下载视频</td><td>1-3 秒</td><td>—</td></tr>
+<tr><td>眼睛 A 抠画面文字</td><td>15-25 秒</td><td>✅ 与眼睛 B 并行</td></tr>
+<tr><td>眼睛 B 上传给大脑、等准备好</td><td>20-30 秒</td><td>✅ 与眼睛 A 并行</td></tr>
+<tr><td>大脑逐条判规则（推理）</td><td>10-15 秒</td><td>—</td></tr>
+<tr><td>回单（盖章 + 贴评语）</td><td>&lt; 1 秒</td><td>—</td></tr>
+<tr style="background:#1f6f44"><td><strong>合计</strong></td><td><strong>~40 秒</strong></td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ─── 9. 演进事件 ─────────────────────────────── -->
+<h2 id="history">9 · 演进过程里的几次"业务事件"</h2>
+
+<p>这套系统不是一上线就这么稳。下面是几个<strong>重要的成长节点</strong>，每个都是"原本以为没问题，结果坏掉了"的教训。</p>
+
+<h3>事件一 · 单一排队池 → 多品牌互相抢任务（已修复）</h3>
+<div class="warn">
+<strong>原来：</strong> 所有品牌的审核任务进同一个排队池，多个审核员一起抢。<br>
+<strong>结果：</strong> 跟视频审核业务<strong>无关的</strong>其他容器（比如普通对话助理）也开始抢这些任务，
+但它们没装规则手册、不知道怎么审 → <strong>70-95% 的 Manus 审核请求被错误容器接走然后卡死</strong>。
+<br><strong>修复：</strong> 改成"<strong>每个品牌一个专属队列</strong>"，从命名层就隔离，
+不该接的人物理上接不到。
+</div>
+
+<h3>事件二 · 审核员"忘了自己是谁"（已修复）</h3>
+<div class="warn">
+<strong>原来：</strong> 审核员要写回数据库时，临时去环境里查"我要写哪个数据库"的地址。<br>
+<strong>结果：</strong> 偶发地址查不到，<strong>整条审核结果写不进数据库</strong>，工作白做。<br>
+怀疑是底层某个 C 扩展或者监控组件在某个时机把环境变量清空了。<br>
+<strong>修复：</strong> 审核员一上岗就把"自己叫什么、数据库地址是什么"<strong>写在脑门上</strong>，
+之后不再问外界。代价是改完数据库地址需要重启容器，但这是可接受的，因为它已经是部署流程的一部分。
+</div>
+
+<h3>事件三 · API 钥匙泄漏（已修复）</h3>
+<div class="warn">
+<strong>原来：</strong> 调用大脑服务时，API 钥匙作为 URL 参数发送，并且在内存里缓存了一份。<br>
+<strong>结果：</strong> 钥匙<strong>出现在错误日志、代理日志、各种 traceback 里</strong>，被外部捕获。<br>
+<strong>修复：</strong>
+<ul style="margin:6px 0">
+  <li>钥匙改用<strong>请求头</strong>传递（不会进 URL 日志）</li>
+  <li>每次调用都<strong>临时从环境读</strong>，不缓存（钥匙轮换能立即生效）</li>
+  <li>所有错误日志输出前<strong>抹掉钥匙痕迹</strong></li>
+</ul>
+</div>
+
+<h3>事件四 · 老审核员的时间线评论被关闭（设计变更）</h3>
+<div class="warn">
+<strong>原来：</strong> 老审核员审完会自动在时间线写 "AI Review: 3/4 passed" 这种简单评语。<br>
+<strong>问题：</strong> Manus 切到新审核员后，新审核员也会写一份 11 条规则的详细评语，
+两份评语<strong>同时出现</strong>在时间线，互相干扰，UI 上一片混乱。<br>
+<strong>修复：</strong> 给品牌方加了一个开关 "禁用老审核员的时间线评语"，Manus 打开开关，
+老的不写了，只留新的详细版本。其他 21 个品牌开关是关的，所以老评语仍在工作。
+</div>
+
+<hr style="border:0;border-top:1px solid var(--border);margin:36px 0 14px">
+<div class="meta">
+本文档以"功能与数据流动"视角描述。
+具体代码模块、文件路径、数据库迁移命名、API 端点、PR 编号等技术细节，按需可另出技术档。
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#0e1320',
+      primaryColor: '#1c2330',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#58a6ff',
+      lineColor: '#8b949e',
+      secondaryColor: '#30363d',
+      tertiaryColor: '#21262d',
+      fontFamily: '-apple-system, BlinkMacSystemFont, sans-serif',
+      fontSize: '14px'
+    },
+    flowchart: { curve: 'basis', useMaxWidth: true },
+    sequence: { useMaxWidth: true }
+  });
+</script>
+</body>
+</html>
