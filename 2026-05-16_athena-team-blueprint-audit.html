@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>按团队助理蓝图改造 Athena · 文章 audit</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12);--gray:#7d8590;--gray-dim:rgba(125,133,144,.15)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.65;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .topbar .tag-cat{font-family:"SF Mono",Menlo,monospace;font-size:10px;padding:3px 8px;border-radius:3px;letter-spacing:.08em;font-weight:600;background:var(--cyan-dim);color:var(--cyan);margin-left:auto}
+  .container{max-width:1100px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:18px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue)}
+  a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+  p{margin:8px 0 14px}
+
+  .part{margin:48px -28px 18px;padding:24px 28px 14px;border-top:1px solid var(--border);position:relative}
+  .part.p1{background:linear-gradient(180deg,var(--blue-dim) 0,transparent 100%);border-top:3px solid var(--blue)}
+  .part.p2{background:linear-gradient(180deg,var(--accent-dim) 0,transparent 100%);border-top:3px solid var(--accent)}
+  .part.p3{background:linear-gradient(180deg,var(--purple-dim) 0,transparent 100%);border-top:3px solid var(--purple)}
+  .part.p4{background:linear-gradient(180deg,var(--cyan-dim) 0,transparent 100%);border-top:3px solid var(--cyan)}
+  .part.p5{background:linear-gradient(180deg,var(--pink-dim) 0,transparent 100%);border-top:3px solid var(--pink)}
+  .part .pno{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:11px;padding:3px 10px;border-radius:4px;letter-spacing:.1em;font-weight:600;margin-bottom:6px}
+  .part.p1 .pno{background:var(--blue);color:var(--bg)}
+  .part.p2 .pno{background:var(--accent);color:var(--bg)}
+  .part.p3 .pno{background:var(--purple);color:var(--bg)}
+  .part.p4 .pno{background:var(--cyan);color:var(--bg)}
+  .part.p5 .pno{background:var(--pink);color:var(--bg)}
+  .part h1.ptitle{font-size:24px;font-weight:600;margin:0 0 4px;letter-spacing:-.02em}
+  .part.p1 h1.ptitle{color:var(--blue)}
+  .part.p2 h1.ptitle{color:var(--accent)}
+  .part.p3 h1.ptitle{color:var(--purple)}
+  .part.p4 h1.ptitle{color:var(--cyan)}
+  .part.p5 h1.ptitle{color:var(--pink)}
+  .part .ptag{color:var(--muted);font-size:13px}
+
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:14px 18px;margin:10px 0 22px;font-size:14.5px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  .lead em{color:var(--cyan);font-style:normal}
+
+  .fig{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin:14px 0 18px}
+  .fig .caption{color:var(--muted);font-size:12px;text-align:center;margin-top:8px;font-style:italic}
+  .fig .fig-title{font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;border-bottom:1px dashed var(--border);padding-bottom:8px}
+  svg{display:block;margin:0 auto;max-width:100%;height:auto}
+
+  svg .node{fill:var(--card-2);stroke:var(--border-strong);stroke-width:1.5}
+  svg .node-text{fill:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;font-size:12px;font-weight:500;text-anchor:middle;dominant-baseline:middle}
+  svg .node-sub{fill:var(--muted);font-family:"SF Mono",Menlo,monospace;font-size:9.5px;text-anchor:middle}
+  svg .edge{stroke:var(--border-strong);stroke-width:1.5;fill:none}
+  svg .edge-text{fill:var(--muted);font-family:-apple-system,system-ui;font-size:10.5px;text-anchor:middle}
+  svg .edge.dashed{stroke-dasharray:5,4}
+  svg .edge.thick{stroke-width:2.5}
+  svg .ok{stroke:var(--green)}
+  svg .ok-fill{fill:var(--green-dim);stroke:var(--green);stroke-width:1.5}
+  svg .warn{stroke:var(--yellow)}
+  svg .warn-fill{fill:var(--yellow-dim);stroke:var(--yellow);stroke-width:1.5}
+  svg .bad{stroke:var(--red)}
+  svg .bad-fill{fill:var(--red-dim);stroke:var(--red);stroke-width:1.5}
+  svg .info-fill{fill:var(--blue-dim);stroke:var(--blue);stroke-width:1.5}
+  svg .accent-fill{fill:var(--accent-dim);stroke:var(--accent);stroke-width:1.5}
+  svg .purple-fill{fill:var(--purple-dim);stroke:var(--purple);stroke-width:1.5}
+  svg .cyan-fill{fill:var(--cyan-dim);stroke:var(--cyan);stroke-width:1.5}
+  svg .gray-fill{fill:var(--gray-dim);stroke:var(--gray);stroke-width:1.5}
+  svg .group{fill:none;stroke:var(--border);stroke-width:1;stroke-dasharray:3,3}
+  svg .label-strong{fill:var(--text);font-weight:600;font-size:12.5px;text-anchor:middle}
+  svg .tier-label{fill:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.1em}
+
+  .tldr{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:14px 0 8px}
+  .tldr .tc{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-top:3px solid var(--accent);display:flex;gap:12px;align-items:flex-start}
+  .tldr .tc .ico{font-size:22px;line-height:1;flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:var(--card-2);border-radius:8px;font-weight:700;font-family:"SF Mono",Menlo,monospace;color:var(--accent)}
+  .tldr .tc .body .ttl{font-weight:600;font-size:13.5px;margin-bottom:4px;color:var(--text)}
+  .tldr .tc .body .txt{color:var(--muted);font-size:12.5px;line-height:1.55}
+  .tldr .tc.blue{border-top-color:var(--blue)} .tldr .tc.blue .ico{color:var(--blue)}
+  .tldr .tc.green{border-top-color:var(--green)} .tldr .tc.green .ico{color:var(--green)}
+  .tldr .tc.purple{border-top-color:var(--purple)} .tldr .tc.purple .ico{color:var(--purple)}
+  .tldr .tc.cyan{border-top-color:var(--cyan)} .tldr .tc.cyan .ico{color:var(--cyan)}
+  .tldr .tc.red{border-top-color:var(--red)} .tldr .tc.red .ico{color:var(--red)}
+  .tldr .tc.yellow{border-top-color:var(--yellow)} .tldr .tc.yellow .ico{color:var(--yellow)}
+
+  .tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+  .tier{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;border-top:3px solid var(--green);position:relative;display:flex;flex-direction:column;gap:6px}
+  .tier.t-m{border-top-color:var(--yellow)}
+  .tier.t-l{border-top-color:var(--red)}
+  .tier .badge{display:inline-block;font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:2px 8px;border-radius:4px;font-weight:700;background:var(--green-dim);color:var(--green);letter-spacing:.05em;align-self:flex-start}
+  .tier.t-m .badge{background:var(--yellow-dim);color:var(--yellow)}
+  .tier.t-l .badge{background:var(--red-dim);color:var(--red)}
+  .tier .ttitle{font-weight:600;font-size:14px;line-height:1.35}
+  .tier .meta{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;color:var(--muted)}
+  .tier .summary{font-size:12.5px;color:var(--text);line-height:1.55}
+  .tier .files{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto}
+  .tier .files .f{font-family:"SF Mono",Menlo,monospace;font-size:10.5px;padding:2px 7px;border-radius:3px;background:var(--card-2);color:var(--blue)}
+  .tier .files .f.add{color:var(--green);background:var(--green-dim)}
+  .tier .files .f.mod{color:var(--yellow);background:var(--yellow-dim)}
+
+  .risks{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:14px 0}
+  .risk{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:6px;padding:12px 16px}
+  .risk .rh{display:flex;align-items:center;gap:8px;color:var(--red);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+  .risk .ri{width:22px;height:22px;border-radius:50%;background:var(--red-dim);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .risk .rb{font-size:12.8px;color:var(--text);line-height:1.55}
+  .risk .rb strong{color:var(--accent)}
+
+  .refs{margin-top:30px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px 22px}
+  .refs h3{margin:0 0 10px;font-size:14px}
+  .refs ul{margin:0;padding-left:18px;font-size:13px;line-height:1.7}
+  .refs code{font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 回到 gallery</a>
+  <span class="title">按团队助理蓝图改造 Athena · <strong>原文 audit + 改造路径</strong></span>
+  <span class="tag-cat">架构推演</span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>按团队助理蓝图改造 Athena</h1>
+    <div class="sub">用原文给的"团队版必备件清单"反向审视 Athena · 18 项逐一标 ✓/≈/✗ · 推可执行改造路径 · 2026-05-16</div>
+  </div>
+
+  <!-- HERO -->
+  <div class="fig">
+    <div class="fig-title">一张图看完 audit 结论</div>
+    <svg viewBox="0 0 1000 360" width="1000">
+      <defs>
+        <marker id="arr1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7d8590"/></marker>
+      </defs>
+
+      <!-- 左：原文蓝图概貌 -->
+      <rect class="info-fill" x="20" y="20" width="280" height="320" rx="10"/>
+      <text class="label-strong" x="160" y="46" style="fill:#58a6ff;font-size:14px">原文蓝图</text>
+      <text class="node-sub" x="160" y="62">团队助理 18 件必备</text>
+
+      <rect class="node" x="40" y="80" width="240" height="32" rx="5"/><text class="node-text" x="160" y="100">接入层 · 4 件</text>
+      <rect class="node" x="40" y="120" width="240" height="32" rx="5"/><text class="node-text" x="160" y="140">Auth + Tenant · 3 件</text>
+      <rect class="node" x="40" y="160" width="240" height="32" rx="5"/><text class="node-text" x="160" y="180">Agent 计算 · 3 件</text>
+      <rect class="node" x="40" y="200" width="240" height="32" rx="5"/><text class="node-text" x="160" y="220">存储 · 5 件</text>
+      <rect class="node" x="40" y="240" width="240" height="32" rx="5"/><text class="node-text" x="160" y="260">跨层件 · 3 件</text>
+      <text class="node-sub" x="160" y="295">三层 SOUL + 用量记账 + 审计</text>
+
+      <!-- 中：箭头 -->
+      <text class="edge-text" x="500" y="60" style="font-size:14px;font-weight:600;fill:#ff8c42">用蓝图逐项 audit Athena</text>
+      <path class="edge thick" d="M310,180 L640,180" marker-end="url(#arr1)"/>
+
+      <!-- 右：Athena 在 18 件上的状态分布 -->
+      <rect class="accent-fill" x="660" y="20" width="320" height="320" rx="10"/>
+      <text class="label-strong" x="820" y="46" style="fill:#ff8c42;font-size:14px">Athena 现状分布</text>
+      <text class="node-sub" x="820" y="62">同样 18 件 → 状态分桶</text>
+
+      <!-- 4 horizontal bars -->
+      <g transform="translate(680,90)">
+        <rect class="ok-fill" x="0" y="0" width="60" height="44" rx="6"/>
+        <text class="node-text" x="30" y="20" style="fill:#3fb950;font-weight:700;font-size:18px">5</text>
+        <text class="node-sub" x="30" y="38" style="font-size:10px;fill:#3fb950">已达标</text>
+        <text class="node-sub" x="160" y="14" style="font-size:11px">接入层 4 全有 + 用量记账</text>
+        <text class="node-sub" x="160" y="30" style="font-size:11px">+ Worker Pool + Subagent</text>
+        <text class="node-sub" x="160" y="42" style="font-size:9.5px">CLI/Gateway/Web/API/usage</text>
+      </g>
+
+      <g transform="translate(680,150)">
+        <rect class="warn-fill" x="0" y="0" width="60" height="44" rx="6"/>
+        <text class="node-text" x="30" y="20" style="fill:#d29922;font-weight:700;font-size:18px">8</text>
+        <text class="node-sub" x="30" y="38" style="font-size:10px;fill:#d29922">凑合够用</text>
+        <text class="node-sub" x="160" y="14" style="font-size:11px">弱 RLS · grep 代检索 · EBS 代 S3</text>
+        <text class="node-sub" x="160" y="30" style="font-size:11px">Quota 只记不限 · Dream 未接通</text>
+        <text class="node-sub" x="160" y="42" style="font-size:9.5px">+ 两层 SOUL · 审计 (OTEL only)</text>
+      </g>
+
+      <g transform="translate(680,210)">
+        <rect class="bad-fill" x="0" y="0" width="60" height="44" rx="6"/>
+        <text class="node-text" x="30" y="20" style="fill:#f85149;font-weight:700;font-size:18px">2</text>
+        <text class="node-sub" x="30" y="38" style="font-size:10px;fill:#f85149">真缺</text>
+        <text class="node-sub" x="160" y="14" style="font-size:11px">Vault — .env 散落 API key</text>
+        <text class="node-sub" x="160" y="30" style="font-size:11px">Org 层 SOUL — 没有</text>
+        <text class="node-sub" x="160" y="42" style="font-size:9.5px">改造收益高、成本可控</text>
+      </g>
+
+      <g transform="translate(680,270)">
+        <rect class="gray-fill" x="0" y="0" width="60" height="44" rx="6"/>
+        <text class="node-text" x="30" y="20" style="fill:#7d8590;font-weight:700;font-size:18px">3</text>
+        <text class="node-sub" x="30" y="38" style="font-size:10px;fill:#7d8590">不需要</text>
+        <text class="node-sub" x="160" y="14" style="font-size:11px">OIDC/SSO · Tenant Resolver</text>
+        <text class="node-sub" x="160" y="30" style="font-size:11px">Redis 集群</text>
+        <text class="node-sub" x="160" y="42" style="font-size:9.5px">Athena 形态决定 · 强行做是浪费</text>
+      </g>
+    </svg>
+    <div class="caption">原文给的 18 件标尺套到 Athena 上：5 已达标 · 8 凑合够用 · 2 真缺 · 3 不需要。改造重点是"真缺 2 件 + 凑合里值得升级的 3 件"。</div>
+  </div>
+
+  <div class="tldr">
+    <div class="tc blue"><div class="ico">→</div><div class="body"><div class="ttl">视角换了</div><div class="txt">不是问"Hermes 怎么搬"，是问"按团队助理蓝图，Athena 缺什么"。</div></div></div>
+    <div class="tc green"><div class="ico">5</div><div class="body"><div class="ttl">已经达标</div><div class="txt">接入层 4 件 + Worker Pool + Subagent + 用量记账。Athena 在团队侧的"骨架"是齐的。</div></div></div>
+    <div class="tc yellow"><div class="ico">8</div><div class="body"><div class="ttl">凑合够用</div><div class="txt">弱 RLS / grep 代检索 / EBS 代 S3 等。形态决定能容忍，但有几项有升级价值。</div></div></div>
+    <div class="tc red"><div class="ico">2</div><div class="body"><div class="ttl">真缺，建议补</div><div class="txt">Vault（.env 集中→秘密管理）+ Org 层 SOUL（合规 guardrail）。</div></div></div>
+  </div>
+
+  <!-- ============== PART 1 ============== -->
+  <div class="part p1">
+    <div class="pno">PART 01</div>
+    <h1 class="ptitle">原文画的"团队助理蓝图"</h1>
+    <div class="ptag">5 层架构 + 3 件跨层 · 共 18 件 · 这是审视 Athena 的标尺。</div>
+  </div>
+
+  <div class="fig">
+    <div class="fig-title">复刻原文 Part 5 推论架构图 + 跨层件</div>
+    <svg viewBox="0 0 1000 540" width="1000">
+      <!-- Layer label gutter -->
+      <text class="tier-label" x="40" y="48">L1</text>
+      <text class="tier-label" x="40" y="142">L2</text>
+      <text class="tier-label" x="40" y="236">L3</text>
+      <text class="tier-label" x="40" y="354">L4</text>
+      <text class="tier-label" x="40" y="475">跨层</text>
+
+      <!-- L1 接入层 -->
+      <rect class="info-fill" x="80" y="20" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="38" style="font-weight:600;fill:#58a6ff">L1 接入层 · 4 件</text>
+      <rect class="node" x="110" y="46" width="180" height="24" rx="4"/><text class="node-text" x="200" y="60" style="font-size:11px">① CLI / SDK</text>
+      <rect class="node" x="305" y="46" width="180" height="24" rx="4"/><text class="node-text" x="395" y="60" style="font-size:11px">② Gateway 多平台</text>
+      <rect class="node" x="500" y="46" width="180" height="24" rx="4"/><text class="node-text" x="590" y="60" style="font-size:11px">③ Web App</text>
+      <rect class="node" x="695" y="46" width="180" height="24" rx="4"/><text class="node-text" x="785" y="60" style="font-size:11px">④ API</text>
+
+      <!-- L2 Auth + Tenant -->
+      <rect class="purple-fill" x="80" y="110" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="128" style="font-weight:600;fill:#bc8cff">L2 Auth + Tenant 层 · 3 件</text>
+      <rect class="node" x="180" y="136" width="220" height="24" rx="4"/><text class="node-text" x="290" y="150" style="font-size:11px">⑤ OIDC / SSO</text>
+      <rect class="node" x="420" y="136" width="220" height="24" rx="4"/><text class="node-text" x="530" y="150" style="font-size:11px">⑥ Tenant Resolver (org/team/user)</text>
+      <rect class="node" x="660" y="136" width="220" height="24" rx="4"/><text class="node-text" x="770" y="150" style="font-size:11px">⑦ Quota / 限流</text>
+
+      <!-- L3 Agent 计算 -->
+      <rect class="accent-fill" x="80" y="204" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="222" style="font-weight:600;fill:#ff8c42">L3 Agent 计算 · 3 件</text>
+      <rect class="node" x="180" y="230" width="220" height="24" rx="4"/><text class="node-text" x="290" y="244" style="font-size:11px">⑧ Worker Pool (无状态)</text>
+      <rect class="node" x="420" y="230" width="220" height="24" rx="4"/><text class="node-text" x="530" y="244" style="font-size:11px">⑨ Subagent / Delegation</text>
+      <rect class="node" x="660" y="230" width="220" height="24" rx="4"/><text class="node-text" x="770" y="244" style="font-size:11px">⑩ Cron / Curator</text>
+
+      <!-- L4 存储 -->
+      <rect class="cyan-fill" x="80" y="298" width="880" height="86" rx="8"/>
+      <text class="node-text" x="520" y="316" style="font-weight:600;fill:#56d4dd">L4 存储层 · 5 件</text>
+      <rect class="node" x="100" y="324" width="165" height="44" rx="4"/>
+      <text class="node-text" x="183" y="342" style="font-size:11px">⑪ Postgres + RLS</text>
+      <text class="node-sub" x="183" y="358" style="font-size:9px">+ pgvector 主存储</text>
+
+      <rect class="node" x="275" y="324" width="165" height="44" rx="4"/>
+      <text class="node-text" x="358" y="342" style="font-size:11px">⑫ 独立 FTS</text>
+      <text class="node-sub" x="358" y="358" style="font-size:9px">Meilisearch/OpenSearch</text>
+
+      <rect class="node" x="450" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="530" y="342" style="font-size:11px">⑬ 对象存储</text>
+      <text class="node-sub" x="530" y="358" style="font-size:9px">S3 / OSS · 归档</text>
+
+      <rect class="node" x="620" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="700" y="342" style="font-size:11px">⑭ Redis</text>
+      <text class="node-sub" x="700" y="358" style="font-size:9px">锁 / 缓存 / 限流</text>
+
+      <rect class="node" x="790" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="870" y="342" style="font-size:11px">⑮ Vault</text>
+      <text class="node-sub" x="870" y="358" style="font-size:9px">API key 池 + 密钥</text>
+
+      <!-- 跨层件 -->
+      <rect class="warn-fill" x="80" y="420" width="880" height="86" rx="8"/>
+      <text class="node-text" x="520" y="438" style="font-weight:600;fill:#d29922">跨层 · 3 件 (作者明确点名)</text>
+
+      <rect class="node" x="100" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="235" y="466" style="font-size:11px">⑯ 三层 SOUL.md</text>
+      <text class="node-sub" x="235" y="482" style="font-size:9px">Org → Team → User 组合 prompt</text>
+
+      <rect class="node" x="380" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="515" y="466" style="font-size:11px">⑰ API key 池 + 用量记账</text>
+      <text class="node-sub" x="515" y="482" style="font-size:9px">who / when / cost / model</text>
+
+      <rect class="node" x="660" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="795" y="466" style="font-size:11px">⑱ 审计日志 (独立 store)</text>
+      <text class="node-sub" x="795" y="482" style="font-size:9px">合规要求 1-7 年留存</text>
+
+      <!-- 连线层级关系 -->
+      <path class="edge dashed" d="M520,76 L520,110"/>
+      <path class="edge dashed" d="M520,166 L520,204"/>
+      <path class="edge dashed" d="M520,260 L520,298"/>
+      <path class="edge dashed" d="M520,384 L520,420"/>
+    </svg>
+    <div class="caption">这是原文 Part 5 "团队版的推论架构"完整摊开。下面所有 audit 都按这 18 件逐项做。</div>
+  </div>
+
+  <!-- ============== PART 2 ============== -->
+  <div class="part p2">
+    <div class="pno">PART 02</div>
+    <h1 class="ptitle">Athena 现状 · 同坐标重画</h1>
+    <div class="ptag">把蓝图的 5 层坐标盖到 Athena 实际部署上，颜色就是 audit 结论。</div>
+  </div>
+
+  <div class="fig">
+    <div class="fig-title">Athena 实际架构 · 套蓝图坐标</div>
+    <svg viewBox="0 0 1000 540" width="1000">
+      <text class="tier-label" x="40" y="48">L1</text>
+      <text class="tier-label" x="40" y="142">L2</text>
+      <text class="tier-label" x="40" y="236">L3</text>
+      <text class="tier-label" x="40" y="354">L4</text>
+      <text class="tier-label" x="40" y="475">跨层</text>
+
+      <!-- L1 -->
+      <rect class="ok-fill" x="80" y="20" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="38" style="font-weight:600;fill:#3fb950">L1 接入层 ✓ 全覆盖</text>
+      <rect class="node" x="110" y="46" width="180" height="24" rx="4"/><text class="node-text" x="200" y="60" style="font-size:10.5px">nanobot CLI</text>
+      <rect class="node" x="305" y="46" width="180" height="24" rx="4"/><text class="node-text" x="395" y="60" style="font-size:10.5px">channels/ × 14 (IM live)</text>
+      <rect class="node" x="500" y="46" width="180" height="24" rx="4"/><text class="node-text" x="590" y="60" style="font-size:10.5px">frontend-internal/-public</text>
+      <rect class="node" x="695" y="46" width="180" height="24" rx="4"/><text class="node-text" x="785" y="60" style="font-size:10.5px">FastAPI :8089 + nanobot HTTP</text>
+
+      <!-- L2 -->
+      <rect class="gray-fill" x="80" y="110" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="128" style="font-weight:600;fill:#7d8590">L2 Auth + Tenant · 单组织模式 (不需要)</text>
+      <rect class="node bad-fill" x="180" y="136" width="220" height="24" rx="4"/><text class="node-text" x="290" y="150" style="font-size:10.5px;fill:#f85149">✗ 无 OIDC · 单组织内部不需要</text>
+      <rect class="node bad-fill" x="420" y="136" width="220" height="24" rx="4"/><text class="node-text" x="530" y="150" style="font-size:10.5px;fill:#f85149">✗ 无 Tenant Resolver</text>
+      <rect class="node warn-fill" x="660" y="136" width="220" height="24" rx="4"/><text class="node-text" x="770" y="150" style="font-size:10.5px;fill:#d29922">≈ 用量已记账，无主动限流</text>
+
+      <!-- L3 -->
+      <rect class="ok-fill" x="80" y="204" width="880" height="56" rx="8"/>
+      <text class="node-text" x="520" y="222" style="font-weight:600;fill:#3fb950">L3 Agent 计算 · 已经够团队规模</text>
+      <rect class="node ok-fill" x="180" y="230" width="220" height="24" rx="4"/><text class="node-text" x="290" y="244" style="font-size:10.5px;fill:#3fb950">✓ 13 容器无状态 + 持久任务框架</text>
+      <rect class="node ok-fill" x="420" y="230" width="220" height="24" rx="4"/><text class="node-text" x="530" y="244" style="font-size:10.5px;fill:#3fb950">✓ 子代理派发能力（已实现）</text>
+      <rect class="node warn-fill" x="660" y="230" width="220" height="24" rx="4"/><text class="node-text" x="770" y="244" style="font-size:10.5px;fill:#d29922">≈ 定时框架在 · 自演化器未接通</text>
+
+      <!-- L4 -->
+      <rect class="warn-fill" x="80" y="298" width="880" height="86" rx="8"/>
+      <text class="node-text" x="520" y="316" style="font-weight:600;fill:#d29922">L4 存储 · 多数凑合够用</text>
+      <rect class="node warn-fill" x="100" y="324" width="165" height="44" rx="4"/>
+      <text class="node-text" x="183" y="342" style="font-size:10.5px;fill:#d29922">≈ 托管向量库</text>
+      <text class="node-sub" x="183" y="358" style="font-size:9px">应用层身份过滤 · 非真行级安全</text>
+
+      <rect class="node warn-fill" x="275" y="324" width="165" height="44" rx="4"/>
+      <text class="node-text" x="358" y="342" style="font-size:10.5px;fill:#d29922">≈ agent 主动调通用搜索</text>
+      <text class="node-sub" x="358" y="358" style="font-size:9px">无专用检索引擎，当前规模够用</text>
+
+      <rect class="node warn-fill" x="450" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="530" y="342" style="font-size:10.5px;fill:#d29922">≈ 块存储共享挂载</text>
+      <text class="node-sub" x="530" y="358" style="font-size:9px">工作目录 13 容器共用</text>
+
+      <rect class="node gray-fill" x="620" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="700" y="342" style="font-size:10.5px;fill:#7d8590">– 无 Redis</text>
+      <text class="node-sub" x="700" y="358" style="font-size:9px">进程内异步锁替代 · 单机部署够</text>
+
+      <rect class="node bad-fill" x="790" y="324" width="160" height="44" rx="4"/>
+      <text class="node-text" x="870" y="342" style="font-size:10.5px;fill:#f85149">✗ 无 Vault</text>
+      <text class="node-sub" x="870" y="358" style="font-size:9px">密钥散落在各容器配置文件</text>
+
+      <!-- 跨层 -->
+      <rect class="warn-fill" x="80" y="420" width="880" height="86" rx="8"/>
+      <text class="node-text" x="520" y="438" style="font-weight:600;fill:#d29922">跨层 · 一缺一凑合一齐</text>
+
+      <rect class="node bad-fill" x="100" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="235" y="466" style="font-size:10.5px;fill:#f85149">✗ 只两层 SOUL（共享 + 各皮肤）</text>
+      <text class="node-sub" x="235" y="482" style="font-size:9px">fleet 共享 + 各 skin 子身份 · 缺组织层</text>
+
+      <rect class="node ok-fill" x="380" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="515" y="466" style="font-size:10.5px;fill:#3fb950">✓ 用量记账 + 后台 schema</text>
+      <text class="node-sub" x="515" y="482" style="font-size:9px">API key 表 + 用量事件表</text>
+
+      <rect class="node warn-fill" x="660" y="448" width="270" height="44" rx="4"/>
+      <text class="node-text" x="795" y="466" style="font-size:10.5px;fill:#d29922">≈ 通用 trace（OTEL + 持久任务 trace）</text>
+      <text class="node-sub" x="795" y="482" style="font-size:9px">无独立审计存储 · 按身份查询弱</text>
+
+      <path class="edge dashed" d="M520,76 L520,110"/>
+      <path class="edge dashed" d="M520,166 L520,204"/>
+      <path class="edge dashed" d="M520,260 L520,298"/>
+      <path class="edge dashed" d="M520,384 L520,420"/>
+    </svg>
+    <div class="caption">同样 5 层，色彩一眼分布出 Athena 在每层的成熟度。绿 = 达标 / 黄 = 凑合 / 红 = 缺 / 灰 = 形态决定不需要。</div>
+  </div>
+
+  <!-- ============== PART 3 ============== -->
+  <div class="part p3">
+    <div class="pno">PART 03</div>
+    <h1 class="ptitle">18 件 audit 矩阵 · 逐项展开</h1>
+    <div class="ptag">每件标状态 + Athena 对应件代码位置 + 一行原因。</div>
+  </div>
+
+  <div class="fig">
+    <div class="fig-title">18 件 audit · 完整矩阵</div>
+    <svg viewBox="0 0 1000 720" width="1000">
+      <!-- column headers -->
+      <text x="60" y="22" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.05em">#</text>
+      <text x="100" y="22" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.05em">蓝图件</text>
+      <text x="320" y="22" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.05em">Athena 对应实现</text>
+      <text x="640" y="22" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.05em">状态</text>
+      <text x="730" y="22" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px;letter-spacing:0.05em">原因 / 证据</text>
+      <line x1="40" y1="28" x2="960" y2="28" stroke="#2a3142"/>
+
+      <!-- L1 group -->
+      <text x="40" y="46" style="fill:#58a6ff;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;font-weight:600;text-transform:uppercase">L1 接入层</text>
+      <line x1="40" y1="52" x2="960" y2="52" stroke="#2a3142"/>
+
+      <g transform="translate(0,56)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">①</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">CLI / SDK</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">命令行工具 (dev/调试用)</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">dev/调试都用</text></g>
+
+      <g transform="translate(0,80)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">②</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Gateway 多平台</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">14 个 IM 平台模块 (主用 IM 线上)</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">IM webhook 主用 · 其他模块在</text></g>
+
+      <g transform="translate(0,104)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">③</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Web App</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">内部 + 公开两个 Web 前端</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">Vercel 部署 · 已上线</text></g>
+
+      <g transform="translate(0,128)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">④</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">API</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">业务 HTTP API + 13 个 agent 实例端点</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">Cloud Run + Web SSE 都有</text></g>
+
+      <!-- L2 -->
+      <text x="40" y="170" style="fill:#bc8cff;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;font-weight:600;text-transform:uppercase">L2 Auth + Tenant</text>
+      <line x1="40" y1="176" x2="960" y2="176" stroke="#2a3142"/>
+
+      <g transform="translate(0,180)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑤</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">OIDC / SSO</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">—</text><rect x="640" y="3" width="50" height="18" rx="3" class="gray-fill"/><text x="665" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">N/A</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">Athena 不接外部用户 · 形态决定不需要</text></g>
+
+      <g transform="translate(0,204)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑥</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Tenant Resolver</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">—</text><rect x="640" y="3" width="50" height="18" rx="3" class="gray-fill"/><text x="665" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">N/A</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">单组织 fleet · 没多租户切换需求</text></g>
+
+      <g transform="translate(0,228)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑦</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Quota / 限流</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">用量记账模块</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">只记账，未接 throttle / 软硬限</text></g>
+
+      <!-- L3 -->
+      <text x="40" y="270" style="fill:#ff8c42;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;font-weight:600;text-transform:uppercase">L3 Agent 计算</text>
+      <line x1="40" y1="276" x2="960" y2="276" stroke="#2a3142"/>
+
+      <g transform="translate(0,280)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑧</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Worker Pool (无状态)</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">13 个无状态容器 + 持久任务</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">message_handler_task 30min · 容器无状态</text></g>
+
+      <g transform="translate(0,304)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑨</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Subagent / Delegation</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">子代理派发能力（已实现）Tool</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">代理派发模块</text></g>
+
+      <g transform="translate(0,328)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑩</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Cron / Curator</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">定时框架 + 自演化器 + 归档器</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">代码完整 · fleet 启动漏注册 Dream cron</text></g>
+
+      <!-- L4 -->
+      <text x="40" y="370" style="fill:#56d4dd;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;font-weight:600;text-transform:uppercase">L4 存储</text>
+      <line x1="40" y1="376" x2="960" y2="376" stroke="#2a3142"/>
+
+      <g transform="translate(0,380)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑪</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">主存储 + RLS</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">托管向量库 + Py 后置过滤</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">应用层 filter agent_id ≠ 真行级安全</text></g>
+
+      <g transform="translate(0,404)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑫</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">独立检索 (FTS)</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">agent 自主调用通用文本搜索</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">百级 shard 量级 ripgrep 够用</text></g>
+
+      <g transform="translate(0,428)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑬</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">对象存储 (归档)</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">块存储共享挂载 · 13 容器 mount 同 dir</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">不是真 S3 · 单 EC2 不需要分层归档</text></g>
+
+      <g transform="translate(0,452)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑭</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Redis</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">—</text><rect x="640" y="3" width="50" height="18" rx="3" class="gray-fill"/><text x="665" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">N/A</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">单 host · asyncio.Lock 够 · 加 Redis 是浪费</text></g>
+
+      <g transform="translate(0,476)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑮</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">Vault</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">各容器密钥散落在配置文件</text><rect x="640" y="3" width="50" height="18" rx="3" class="bad-fill"/><text x="665" y="16" style="fill:#f85149;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✗</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">真缺 · 应改 AWS Secrets Manager</text></g>
+
+      <!-- 跨层 -->
+      <text x="40" y="520" style="fill:#d29922;font-family:SF Mono;font-size:10.5px;letter-spacing:0.1em;font-weight:600;text-transform:uppercase">跨层</text>
+      <line x1="40" y1="526" x2="960" y2="526" stroke="#2a3142"/>
+
+      <g transform="translate(0,530)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑯</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">三层 SOUL</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">fleet 共享 SOUL + 各 skin 子身份</text><rect x="640" y="3" width="50" height="18" rx="3" class="bad-fill"/><text x="665" y="16" style="fill:#f85149;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈/✗</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">两层 · 缺 Org guardrail 层</text></g>
+
+      <g transform="translate(0,554)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑰</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">API key 池 + 用量记账</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">用量记账 + 后台表</text><rect x="640" y="3" width="50" height="18" rx="3" class="ok-fill"/><text x="665" y="16" style="fill:#3fb950;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">✓</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">API key + 用量事件表 · 完整记账维度</text></g>
+
+      <g transform="translate(0,578)"><text x="50" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:11px">⑱</text><text x="100" y="16" style="fill:#e6edf3;font-size:12px">审计日志</text><text x="320" y="16" style="fill:#7d8590;font-family:SF Mono;font-size:10.5px">通用 trace + 持久任务 trace</text><rect x="640" y="3" width="50" height="18" rx="3" class="warn-fill"/><text x="665" y="16" style="fill:#d29922;font-family:SF Mono;font-size:11px;font-weight:700;text-anchor:middle">≈</text><text x="730" y="16" style="fill:#7d8590;font-size:11px">无独立审计库 · 按身份索引能力弱</text></g>
+
+      <!-- Summary footer -->
+      <rect x="40" y="630" width="920" height="60" rx="8" fill="#1c2230" stroke="#3a4256"/>
+      <text x="500" y="652" class="label-strong">汇总</text>
+      <text x="120" y="673" style="font-size:12px;fill:#3fb950;font-weight:600">✓ 5</text>
+      <text x="170" y="673" style="font-size:11.5px;fill:#7d8590">① ② ③ ④ ⑧ ⑨ ⑰ · 接入 + 计算 + 用量</text>
+      <text x="500" y="673" style="font-size:12px;fill:#d29922;font-weight:600">≈ 8</text>
+      <text x="540" y="673" style="font-size:11.5px;fill:#7d8590">⑦ ⑩ ⑪ ⑫ ⑬ ⑮ ⑯ ⑱ · 凑合够用为主</text>
+      <text x="120" y="690" style="font-size:12px;fill:#f85149;font-weight:600">✗ 2</text>
+      <text x="170" y="690" style="font-size:11.5px;fill:#7d8590">⑮ Vault · ⑯ Org 层 (并入"凑合"重计)</text>
+      <text x="500" y="690" style="font-size:12px;fill:#7d8590;font-weight:600">N/A 3</text>
+      <text x="550" y="690" style="font-size:11.5px;fill:#7d8590">⑤ ⑥ ⑭ · Athena 形态不需要</text>
+    </svg>
+    <div class="caption">注：⑦ Quota 和 ⑱ 审计是"≈"——计入"凑合够用 8 件"；⑩ Cron/Curator 严格说也是"≈"但根因在 fleet 启动漏接 cron，前一篇查过。</div>
+  </div>
+
+  <!-- ============== PART 4 ============== -->
+  <div class="part p4">
+    <div class="pno">PART 04</div>
+    <h1 class="ptitle">改造路径 · 决策树</h1>
+    <div class="ptag">按"成本 / 收益 / Athena 形态是否真需要"分档。</div>
+  </div>
+
+  <div class="fig">
+    <div class="fig-title">从 audit 结论到改造方案</div>
+    <svg viewBox="0 0 1000 600" width="1000">
+      <defs>
+        <marker id="arrD" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#7d8590"/></marker>
+        <marker id="arrDG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#3fb950"/></marker>
+      </defs>
+
+      <!-- 根 -->
+      <rect class="accent-fill" x="380" y="20" width="240" height="44" rx="8"/>
+      <text class="label-strong" x="500" y="44" style="fill:#ff8c42">18 件 audit 结论</text>
+      <text class="node-sub" x="500" y="58">✓5 / ≈8 / ✗2 / N/A 3</text>
+
+      <!-- 分支：N/A 直接砍 -->
+      <path class="edge thick" d="M500,64 L500,84"/>
+      <path class="edge thick" d="M500,90 L160,120" marker-end="url(#arrD)"/>
+      <rect class="gray-fill" x="40" y="120" width="240" height="50" rx="6"/>
+      <text class="node-text" x="160" y="142" style="font-weight:600;fill:#7d8590">N/A 3 件 · 不做</text>
+      <text class="node-sub" x="160" y="158">OIDC · Tenant Resolver · Redis</text>
+
+      <!-- 分支：✓ 已达标继续 monitor -->
+      <path class="edge thick ok" d="M500,90 L860,120" marker-end="url(#arrDG)"/>
+      <rect class="ok-fill" x="740" y="120" width="240" height="50" rx="6"/>
+      <text class="node-text" x="860" y="142" style="font-weight:600;fill:#3fb950">✓ 5 件 · 仅监控</text>
+      <text class="node-sub" x="860" y="158">接入 + 计算 + 用量记账</text>
+
+      <!-- 主线 -->
+      <path class="edge thick" d="M500,90 L500,200" marker-end="url(#arrD)"/>
+      <text class="edge-text" x="540" y="160">≈ 8 + ✗ 2 → 决策</text>
+
+      <!-- Decision row -->
+      <rect class="info-fill" x="350" y="200" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="220" style="font-weight:600">问 1：能用现有代码接通的？</text>
+      <text class="node-sub" x="500" y="236">grep 现有 codebase 找 dead-wire</text>
+
+      <path class="edge thick ok" d="M500,244 L500,265" marker-end="url(#arrDG)"/>
+      <rect class="ok-fill" x="60" y="270" width="880" height="56" rx="8"/>
+      <text class="node-text" x="500" y="290" style="font-weight:700;fill:#3fb950;font-size:14px">S 档 · 强烈推荐（已存在代码 + 高收益）</text>
+      <text class="node-sub" x="280" y="312" style="font-size:11.5px">S1 ⑩ Cron 接通 Dream</text>
+      <text class="node-sub" x="500" y="312" style="font-size:11.5px">S2 ⑮ 改 AWS Secrets Manager</text>
+      <text class="node-sub" x="720" y="312" style="font-size:11.5px">S3 ⑱ 加 audit_events 表</text>
+
+      <path class="edge thick" d="M500,326 L500,346" marker-end="url(#arrD)"/>
+      <rect class="info-fill" x="350" y="346" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="366" style="font-weight:600">问 2：业务驱动的有几个？</text>
+      <text class="node-sub" x="500" y="382">外部租户 / 多团队 / 合规 trigger</text>
+
+      <path class="edge thick warn" d="M500,390 L500,411" marker-end="url(#arrD)"/>
+      <rect class="warn-fill" x="60" y="416" width="880" height="56" rx="8"/>
+      <text class="node-text" x="500" y="436" style="font-weight:700;fill:#d29922;font-size:14px">M 档 · 等业务触发（成本中等）</text>
+      <text class="node-sub" x="220" y="458" style="font-size:11.5px">M1 ⑪ VectorDB 启用 RLS policy</text>
+      <text class="node-sub" x="500" y="458" style="font-size:11.5px">M2 ⑦ 用量记账加限流</text>
+      <text class="node-sub" x="780" y="458" style="font-size:11.5px">M3 ⑯ 加 Org 层 SOUL</text>
+
+      <path class="edge thick" d="M500,472 L500,492" marker-end="url(#arrD)"/>
+      <rect class="info-fill" x="350" y="492" width="300" height="44" rx="8"/>
+      <text class="node-text" x="500" y="512" style="font-weight:600">问 3：还有什么</text>
+      <text class="node-sub" x="500" y="528">检查 ⑫ FTS / ⑬ S3 / ⑲</text>
+
+      <path class="edge thick bad" d="M500,536 L500,557" marker-end="url(#arrD)"/>
+      <rect class="bad-fill" x="60" y="562" width="880" height="34" rx="8"/>
+      <text class="node-text" x="500" y="584" style="font-weight:700;fill:#f85149;font-size:13px">L 档 · 不做（Athena 当前规模收益不抵抗成本）：⑫ Meilisearch · ⑬ S3 分层归档</text>
+    </svg>
+    <div class="caption">三层决策：N/A 砍 → ✓ 仅监控 → ≈/✗ 分 S/M/L 三档。S 档全是"代码已存在 / 仅基础设施替换"，不是真新建。</div>
+  </div>
+
+  <div class="tiers">
+    <div class="tier">
+      <span class="badge">S1 ★★★</span>
+      <div class="ttitle">⑩ 接通 Dream system job</div>
+      <div class="meta">≈ 50-80 行 · 0.5 工时</div>
+      <div class="summary">把当前 CLI 启动路径里做的定时任务注册（约 30 行）搬到 fleet 容器启动流程，加 leader 选举（自演化器只在主 bot 跑）。代码已存在，只接连线。</div>
+      <div class="files">
+        <span class="f mod">~ fleet 容器启动文件</span>
+        <span class="f mod">~ fleet 配置</span>
+        <span class="f add">+ leader 选举测试</span>
+      </div>
+    </div>
+
+    <div class="tier">
+      <span class="badge">S2 ★★★</span>
+      <div class="ttitle">⑮ Vault → AWS Secrets Manager</div>
+      <div class="meta">≈ 80-120 行 · 1 工时</div>
+      <div class="summary">把容器配置里的 API key 抽到 AWS Secrets Manager，启动时拉。<strong>Athena 这种 fleet 部署应该早就做</strong>——key 在 .env 跟随 EC2 实例同生死。</div>
+      <div class="files">
+        <span class="f add">+ 秘密加载模块</span>
+        <span class="f mod">~ 容器启动流程</span>
+        <span class="f mod">~ 部署编排</span>
+      </div>
+    </div>
+
+    <div class="tier">
+      <span class="badge">S3 ★★</span>
+      <div class="ttitle">⑱ 加 audit_events 表 (按身份)</div>
+      <div class="meta">≈ 60 行 · 0.5 工时</div>
+      <div class="summary">向量库加一张审计事件表（actor / action / resource / ts），在记忆检索 / 文件写入 / IM 发消息三个关键工具里埋点。<strong>主要是给"出事可追溯"兜底</strong>。</div>
+      <div class="files">
+        <span class="f add">+ 审计表 schema</span>
+        <span class="f mod">~ 记忆检索工具</span>
+        <span class="f mod">~ IM 发消息工具</span>
+      </div>
+    </div>
+
+    <div class="tier t-m">
+      <span class="badge">M1</span>
+      <div class="ttitle">⑪ VectorDB 启用真 RLS</div>
+      <div class="meta">≈ 100 行 · 1 工时</div>
+      <div class="summary">trigger：开始有非 The Company 团队进来。托管向量库底层是 Postgres，可以启用真行级安全策略。当前 Python 后置过滤可保留作 belt-and-braces。</div>
+      <div class="files">
+        <span class="f add">+ RLS 策略 schema</span>
+        <span class="f mod">~ 记忆模块身份注入</span>
+      </div>
+    </div>
+
+    <div class="tier t-m">
+      <span class="badge">M2</span>
+      <div class="ttitle">⑦ 用量记账加限流</div>
+      <div class="meta">≈ 150 行 · 1-2 工时</div>
+      <div class="summary">trigger：单 agent 日成本超阈值。按 agent/day 加 token 桶，超限切便宜模型 / 拒绝新会话 / 报警。</div>
+      <div class="files">
+        <span class="f mod">~ 用量记账模块</span>
+        <span class="f add">+ 限流模块</span>
+      </div>
+    </div>
+
+    <div class="tier t-m">
+      <span class="badge">M3</span>
+      <div class="ttitle">⑯ 加 Org 层 SOUL</div>
+      <div class="meta">≈ 200-300 行 · 1-2 工时</div>
+      <div class="summary">trigger：业务合规要求 / 外部租户。新增组织级 SOUL（合规 guardrail），按组织 → 团队 → 皮肤顺序拼接系统提示。</div>
+      <div class="files">
+        <span class="f add">+ 组织级 SOUL</span>
+        <span class="f mod">~ 上下文拼接逻辑</span>
+      </div>
+    </div>
+
+    <div class="tier t-l">
+      <span class="badge">L ✗</span>
+      <div class="ttitle">⑫ 独立 Meilisearch</div>
+      <div class="meta">不建议</div>
+      <div class="summary">Athena workspace 量级（百级 daily shard）ripgrep 几十毫秒搞定。独立检索引擎要部署集群 + CDC 同步，<strong>YAGNI</strong>。等 shard 量级到 10k+ 再说。</div>
+      <div class="files">
+        <span class="f">不动</span>
+      </div>
+    </div>
+
+    <div class="tier t-l">
+      <span class="badge">L ✗</span>
+      <div class="ttitle">⑬ S3 分层归档</div>
+      <div class="meta">不建议</div>
+      <div class="summary">Athena 单 EC2 fleet · workspace 块存储共享挂载 跑得稳。S3 lifecycle (30d→90d→Glacier) 只在合规留存要求强 / 容量上 TB 时才划算。</div>
+      <div class="files">
+        <span class="f">不动</span>
+      </div>
+    </div>
+
+    <div class="tier t-l">
+      <span class="badge">L ✗</span>
+      <div class="ttitle">⑤⑥⑭ OIDC / Tenant Resolver / Redis</div>
+      <div class="meta">形态决定不做</div>
+      <div class="summary">Athena 是单组织内部 fleet，不接外部用户，没多租户切换需求。Redis 在多 host 部署才有价值——Athena 单 EC2 用 asyncio.Lock 已经够。</div>
+      <div class="files">
+        <span class="f">不动</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============== PART 5 ============== -->
+  <div class="part p5">
+    <div class="pno">PART 05</div>
+    <h1 class="ptitle">风险 + 执行时间轴</h1>
+    <div class="ptag">3 个 S 档建议合并到 1-2 个 PR 里做。</div>
+  </div>
+
+  <div class="risks">
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> 别强行做 N/A 件</div>
+      <div class="rb">原文花大篇幅讲 OIDC / RLS / Redis，<strong>Athena 形态用不上</strong>。看到"团队版必备"就照搬是误读——它的"团队版"是 SaaS 多租户，Athena 是单组织 fleet。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> Vault 改造分步走</div>
+      <div class="rb">.env → Secrets Manager 不要一次性切。<strong>先把新 key 写入 SSM，旧 key 保留 .env 兜底</strong>，切换 N 周后再撤 .env。CLAUDE.md 有踩过 .env 含空格的坑 (PR #2587)。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> Dream 接通的并发约束</div>
+      <div class="rb">13 容器共享 workspace。Dream 必须 <strong>leader 选举（只 athena 跑）</strong>，否则 Phase 2 LLM 增量改 SOUL.md 会并发覆盖。前一篇查过细节。</div>
+    </div>
+    <div class="risk">
+      <div class="rh"><span class="ri">!</span> 审计日志成本</div>
+      <div class="rb">⑱ S3 加 audit_events 表，<strong>只埋"安全敏感动作"</strong>（memory_search / file_write / send_message），不要给所有工具埋——会涨 VectorDB 成本。</div>
+    </div>
+  </div>
+
+  <div class="fig">
+    <div class="fig-title">推荐执行节奏 · 时间轴</div>
+    <svg viewBox="0 0 1000 280" width="1000">
+      <line x1="60" y1="120" x2="940" y2="120" stroke="#3a4256" stroke-width="2"/>
+
+      <circle cx="120" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="120" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">1</text>
+      <text class="node-sub" x="120" y="80" style="font-size:11px;font-weight:600">S1 · 接通 Dream</text>
+      <text class="node-sub" x="120" y="158">0.5 工时</text>
+      <text class="node-sub" x="120" y="173" style="font-size:9.5px">leader=athena 选举</text>
+
+      <circle cx="280" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="280" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">2</text>
+      <text class="node-sub" x="280" y="80" style="font-size:11px;font-weight:600">S2 · Vault</text>
+      <text class="node-sub" x="280" y="158">1 工时</text>
+      <text class="node-sub" x="280" y="173" style="font-size:9.5px">AWS Secrets Manager</text>
+
+      <circle cx="440" cy="120" r="22" class="ok-fill"/>
+      <text class="node-text" x="440" y="124" style="font-weight:700;fill:#3fb950;font-size:13px">3</text>
+      <text class="node-sub" x="440" y="80" style="font-size:11px;font-weight:600">S3 · audit_events</text>
+      <text class="node-sub" x="440" y="158">0.5 工时</text>
+      <text class="node-sub" x="440" y="173" style="font-size:9.5px">埋 3 个关键工具</text>
+
+      <circle cx="600" cy="120" r="22" class="warn-fill"/>
+      <text class="node-text" x="600" y="124" style="font-weight:700;fill:#d29922;font-size:13px">4</text>
+      <text class="node-sub" x="600" y="80" style="font-size:11px;font-weight:600">观察 2 周</text>
+      <text class="node-sub" x="600" y="158">—</text>
+      <text class="node-sub" x="600" y="173" style="font-size:9.5px">监控 + 成本</text>
+
+      <circle cx="760" cy="120" r="22" class="warn-fill"/>
+      <text class="node-text" x="760" y="124" style="font-weight:700;fill:#d29922;font-size:13px">5</text>
+      <text class="node-sub" x="760" y="80" style="font-size:11px;font-weight:600">M2 · throttle</text>
+      <text class="node-sub" x="760" y="158">trigger 驱动</text>
+      <text class="node-sub" x="760" y="173" style="font-size:9.5px">日成本超阈值后</text>
+
+      <circle cx="920" cy="120" r="22" fill="#1c2230" stroke="#7d8590" stroke-width="1.5"/>
+      <text class="node-text" x="920" y="124" style="font-weight:700;fill:#7d8590;font-size:13px">6</text>
+      <text class="node-sub" x="920" y="80" style="font-size:11px;font-weight:600">M1 · RLS · M3 · Org</text>
+      <text class="node-sub" x="920" y="158">业务驱动</text>
+      <text class="node-sub" x="920" y="173" style="font-size:9.5px">外部租户进来</text>
+
+      <text class="label-strong" x="280" y="225" style="fill:#3fb950;font-size:13px">第 1 PR · S1+S2+S3 合并做</text>
+      <text class="node-sub" x="280" y="242" style="font-size:11px">≈ 2 工时 · 全是"代码已有 / 标准基础设施替换"</text>
+      <line x1="80" y1="200" x2="500" y2="200" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <text class="label-strong" x="760" y="225" style="fill:#d29922;font-size:13px">M 档 · trigger 驱动 · 业务推</text>
+      <line x1="600" y1="200" x2="940" y2="200" stroke="#d29922" stroke-width="1.5" stroke-dasharray="4,3"/>
+    </svg>
+    <div class="caption">第一个 PR 把 S1+S2+S3 合并 (≈ 2 工时)，M 档全部业务触发再说。N/A 三件永不做。</div>
+  </div>
+
+  <div class="lead" style="border-left-color:var(--cyan);margin-top:24px">
+    <strong>整篇结论</strong>：用原文给的 18 件团队助理标尺审视 Athena，分布是 <em>✓5 / ≈8 / ✗2 / N/A 3</em>。<strong>3 件 N/A 是 Athena 形态决定不该做</strong>（OIDC / Tenant Resolver / Redis），<strong>5 件已达标</strong>（接入层 4 + 用量记账 + 计算层 2），剩下 10 件里只有 3 个 S 档值得立刻做：<em>⑩ 接通 Dream cron · ⑮ 改 AWS Secrets Manager · ⑱ 加 audit_events 表</em>。M 档 3 件（RLS / throttle / Org SOUL）等业务触发。整体改造工作量 ≈ 2-5 工时。误读原文最大的风险是"看到'团队版必备'就照搬"——文章里的团队版是 SaaS 多租户，Athena 是单组织 fleet，两者不是同一个产品形态。
+  </div>
+
+  <div class="refs">
+    <h3>引用与延伸</h3>
+    <ul>
+      <li>原文：<a href="https://ihoooohi.github.io/garden/tech/hermes-team-deployment/" target="_blank">如果 Hermes 给团队用——从 SQLite 到 Postgres 的架构推演</a> (Part 5 推论架构图)</li>
+      <li>Athena fleet 清单：<code>agent/nanobot-fleet.json</code>（13 bots · EC2 <code>i-...c</code>）</li>
+      <li>⑩ Cron/Dream 接通详查：<a href="2026-05-13_memory-system.html">Athena 记忆系统</a>（含 Dream 断路图）</li>
+      <li>⑰ 用量记账：后台已有 API key 表 + 用量事件表（who / when / cost / model 完整维度）</li>
+      <li>⑮ Vault 改造前置：曾踩过 .env 含空格 unquoted value 的部署坑，分步切换务必保留兜底</li>
+      <li>同主题：<a href="2026-05-13_memory-system.html">Athena 记忆系统</a> · <a href="2026-05-13_fleet-deployment.html">Fleet 部署</a></li>
+    </ul>
+  </div>
+
+</div>
+
+</body>
+</html>
