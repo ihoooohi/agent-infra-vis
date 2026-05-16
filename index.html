@@ -344,6 +344,16 @@
   // 可视化条目清单 · 加新的就在这里加一条
   // ============================================================
   const entries = [
+    // ========== 架构推演 / 移植设计 ==========
+    {
+      file: "2026-05-16_hermes-to-athena-port.html",
+      date: "2026-05-16",
+      title: "把 Hermes 移植到 Athena · 文章解读 + 现场调查 + 可行方案",
+      desc: "读原文 + 翻 Athena 仓库给出「小工作量优先」的移植路径 · 关键反转：原文是反方向论证（团队版=另一个产品），可借用的只有作者点名的三块「与存储无关的核心」· 最大金矿：Athena 的 Dream/Consolidator 子系统代码完整但 fleet 启动路径漏接 cron 注册 · S/M/L 三档方案 + 各档涉及文件清单 + 4 个 risk 警告 · 最小有效移植≈1 PR / 不到 100 行。",
+      category: "architecture",
+      tags: [{text:"架构推演",color:"cyan"},{text:"Hermes",color:"blue"},{text:"Dream",color:"purple"},{text:"小工作量优先",color:"green"}]
+    },
+
     // ========== 项目复盘 / 简历向 ==========
     {
       file: "2026-05-14_athena-memory-pollution-fix-report.html",
