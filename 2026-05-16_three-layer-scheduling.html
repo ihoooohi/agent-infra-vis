@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三层调度 · Hatchet / Prefect / cron 撑起后台 agent</title>
+<style>
+  :root{--bg:#0d1117;--card:#161b22;--card-2:#1c2230;--card-3:#232a3a;--border:#2a3142;--border-strong:#3a4256;--text:#e6edf3;--muted:#7d8590;--accent:#ff8c42;--accent-dim:rgba(255,140,66,.12);--green:#3fb950;--green-dim:rgba(63,185,80,.15);--yellow:#d29922;--yellow-dim:rgba(210,153,34,.15);--red:#f85149;--red-dim:rgba(248,81,73,.12);--blue:#58a6ff;--blue-dim:rgba(88,166,255,.12);--purple:#bc8cff;--purple-dim:rgba(188,140,255,.12);--pink:#ff7eb6;--pink-dim:rgba(255,126,182,.12);--cyan:#56d4dd;--cyan-dim:rgba(86,212,221,.12)}
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text)}
+  body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;line-height:1.6;font-size:14.5px}
+  .topbar{background:rgba(13,17,23,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10}
+  .topbar a{color:var(--muted);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:6px}
+  .topbar a:hover{background:var(--card);color:var(--text)}
+  .topbar .title{font-size:13.5px;color:var(--muted)}
+  .topbar .title strong{color:var(--text);margin-left:4px}
+  .container{max-width:1080px;margin:0 auto;padding:40px 28px 80px}
+  .hero h1{font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:-.02em}
+  .hero .sub{color:var(--muted);font-size:14px;margin-bottom:24px}
+  .lead{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 20px;margin-bottom:16px;font-size:15px;line-height:1.7}
+  .lead strong{color:var(--accent);font-weight:600}
+  h2.section{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--muted);margin:44px 0 16px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+  h2.section .num{background:var(--accent-dim);color:var(--accent);width:22px;height:22px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;letter-spacing:0}
+  p{margin:8px 0 14px}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:12px;background:var(--card-2);padding:1px 6px;border-radius:3px;color:var(--blue)}
+  .callout{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--blue);border-radius:6px;padding:12px 16px;margin:12px 0;font-size:13px}
+  .callout.warn{border-left-color:var(--yellow)}
+  .callout.danger{border-left-color:var(--red)}
+  .callout.good{border-left-color:var(--green)}
+  .callout strong{color:var(--blue)}
+  .callout.warn strong{color:var(--yellow)}
+  .callout.danger strong{color:var(--red)}
+  .callout.good strong{color:var(--green)}
+
+  /* Three-layer hero diagram */
+  .layers{display:grid;grid-template-columns:1fr;gap:10px;margin:16px 0 8px}
+  .layer{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px;display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center}
+  .layer.h{border-top:3px solid var(--purple)}
+  .layer.p{border-top:3px solid var(--cyan)}
+  .layer.c{border-top:3px solid var(--yellow)}
+  .layer .name{font-family:"SF Mono",Menlo,monospace;font-size:18px;font-weight:600}
+  .layer.h .name{color:var(--purple)}
+  .layer.p .name{color:var(--cyan)}
+  .layer.c .name{color:var(--yellow)}
+  .layer .name .role{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:4px;letter-spacing:.04em;text-transform:uppercase}
+  .layer .desc{font-size:13.5px;color:var(--text);line-height:1.6}
+  .layer .desc .why{color:var(--muted);font-size:12px;margin-top:4px}
+
+  /* Compare boxes */
+  .compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:12px 0}
+  @media(max-width:820px){.compare{grid-template-columns:1fr}}
+  .cside{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px}
+  .cside.h{border-top:3px solid var(--purple)}
+  .cside.p{border-top:3px solid var(--cyan)}
+  .cside.c{border-top:3px solid var(--yellow)}
+  .cside .ctitle{font-weight:600;font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .cside.h .ctitle{color:var(--purple)}
+  .cside.p .ctitle{color:var(--cyan)}
+  .cside.c .ctitle{color:var(--yellow)}
+  .cside .csub{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .cside ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .cside ul strong{color:var(--text)}
+
+  /* Table */
+  table.matrix{width:100%;border-collapse:collapse;font-size:13px;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin:12px 0}
+  table.matrix th,table.matrix td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+  table.matrix th{background:var(--card-2);color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+  table.matrix tr:last-child td{border-bottom:none}
+  table.matrix td.h{color:var(--purple);font-weight:600}
+  table.matrix td.p{color:var(--cyan);font-weight:600}
+  table.matrix td.c{color:var(--yellow);font-weight:600}
+  table.matrix td.bad{color:var(--red)}
+  table.matrix td.ok{color:var(--green)}
+  table.matrix .mono{font-family:"SF Mono",Menlo,monospace;font-size:12px}
+
+  /* Timeline */
+  .timeline{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px}
+  .tstep{display:grid;grid-template-columns:90px 32px 1fr;gap:12px;padding:10px 0;align-items:start;border-bottom:1px solid var(--border)}
+  .tstep:last-child{border-bottom:none}
+  .tstep .time{font-family:"SF Mono",Menlo,monospace;font-size:11px;color:var(--muted)}
+  .tstep .dot{width:10px;height:10px;background:var(--accent);border-radius:50%;margin-top:6px;justify-self:center;box-shadow:0 0 0 3px var(--accent-dim)}
+  .tstep.h .dot{background:var(--purple);box-shadow:0 0 0 3px var(--purple-dim)}
+  .tstep.p .dot{background:var(--cyan);box-shadow:0 0 0 3px var(--cyan-dim)}
+  .tstep.c .dot{background:var(--yellow);box-shadow:0 0 0 3px var(--yellow-dim)}
+  .tstep.crash .dot{background:var(--red)}
+  .tstep.user .dot{background:var(--pink)}
+  .tstep .body strong{color:var(--text);font-size:13.5px}
+  .tstep .body .h{color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* Decision tree */
+  .tree{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px 22px;font-family:"SF Mono",Menlo,monospace;font-size:13px;line-height:1.9}
+  .tree .q{color:var(--accent)}
+  .tree .y{color:var(--green)}
+  .tree .n{color:var(--muted)}
+  .tree .pick{display:inline-block;padding:1px 8px;border-radius:3px;font-weight:600;font-size:11.5px;margin-left:8px}
+  .tree .pick.h{background:var(--purple-dim);color:var(--purple)}
+  .tree .pick.p{background:var(--cyan-dim);color:var(--cyan)}
+  .tree .pick.c{background:var(--yellow-dim);color:var(--yellow)}
+
+  /* Incident box */
+  .incident{background:var(--card);border:1px solid var(--red);border-left:4px solid var(--red);border-radius:8px;padding:18px 22px;margin:12px 0}
+  .incident .ilabel{color:var(--red);font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:600;margin-bottom:6px}
+  .incident h3{margin:0 0 10px;font-size:16px;color:var(--text)}
+  .incident .iflow{display:grid;grid-template-columns:120px 1fr;gap:10px;font-size:12.5px;margin:8px 0}
+  .incident .iflow .ikey{color:var(--muted);font-family:"SF Mono",Menlo,monospace;font-size:11.5px}
+  .incident .lesson{margin-top:10px;padding:10px 14px;background:var(--card-2);border-radius:6px;font-size:12.5px;color:var(--text);border-left:2px solid var(--green)}
+  .incident .lesson strong{color:var(--green)}
+
+  /* Stack visualization */
+  .stack{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;margin:16px 0;display:flex;flex-direction:column;align-items:stretch;gap:0}
+  .stack-row{display:grid;grid-template-columns:1fr;text-align:center;padding:14px 16px;border-radius:6px;margin-bottom:8px}
+  .stack-row.user{background:var(--pink-dim);color:var(--pink);font-weight:600;border:1px dashed var(--pink)}
+  .stack-row.h{background:var(--purple-dim);color:var(--purple);font-weight:600;border:1px solid var(--purple)}
+  .stack-row.p{background:var(--cyan-dim);color:var(--cyan);font-weight:600;border:1px solid var(--cyan)}
+  .stack-row.c{background:var(--yellow-dim);color:var(--yellow);font-weight:600;border:1px solid var(--yellow)}
+  .stack-row .lbl{font-size:13px}
+  .stack-row .sub{font-size:11.5px;color:var(--muted);font-weight:400;margin-top:4px}
+  .stack-arrow{text-align:center;color:var(--muted);font-size:18px;line-height:1;margin:-2px 0 6px}
+
+  /* Stripe boxes */
+  .stripe{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:12px 0}
+  .stripe .si{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .stripe .si .sname{font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--accent);font-weight:600;margin-bottom:4px}
+  .stripe .si .sdesc{color:var(--muted);font-size:12px;line-height:1.55}
+
+  pre{background:var(--card-2);border:1px solid var(--border);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:"SF Mono",Menlo,monospace;font-size:12.5px;line-height:1.55;margin:8px 0}
+  pre .key{color:var(--accent)}
+  pre .str{color:var(--green)}
+  pre .com{color:var(--muted)}
+  pre .ann{color:var(--purple)}
+
+  .footer{margin-top:56px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:11.5px}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html">← 合集首页</a>
+  <span class="title">visualizations <span style="color:var(--muted)">/</span> <strong>三层调度 · 撑起后台 agent</strong></span>
+</div>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>三层调度 · Hatchet / Prefect / cron 撑起"后台 agent"</h1>
+    <div class="sub">为什么不是一个调度器搞定所有 · 每层不可替代在哪 · 一个任务该放哪层</div>
+  </div>
+
+  <div class="lead">
+    一个 agent 平台真正"活"起来，光有对话循环不够 —— 后面还要有<strong>主动跑活的肌肉</strong>：每天给运营推 24h 花费报告、每周生成竞品分析、Athena 7 步 autopilot 中间挂起等用户点按钮、上百万条达人数据夜里入库……<br>
+    这些事的<strong>性格完全不同</strong>：有的需要状态持久化 + 等人 + 跨进程 resume，有的需要批量调度 + worker pool + 失败重试，有的只是"每天 9 点跑一个 Python 脚本"。<br>
+    用同一个调度器全包，<strong>不是技术做不到，是性格不合</strong>。所以我们形成了三层：<span style="color:var(--purple)">Hatchet</span> 管长事务、<span style="color:var(--cyan)">Prefect</span> 管离线 pipeline、<span style="color:var(--yellow)">cron</span> 管宿主小活。
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 class="section"><span class="num">1</span>三层全景 · 各自的位置</h2>
+
+  <p>先看一眼分工地图。三层不是层级（不是上层调用下层），是<strong>按任务性格平行存在</strong>的三种"调度肌肉"：</p>
+
+  <div class="layers">
+    <div class="layer h">
+      <div class="name">Hatchet<span class="role">长事务 · 等人 · 不丢</span></div>
+      <div class="desc">
+        agent 业务流的"耐久骨架"。一次 task 可能跑 30-60 分钟、中间挂起等用户点 IM 按钮、容器重启不影响。<strong>状态在 Hatchet server 端持久化</strong>，每个 await 边界都 checkpoint。
+        <div class="why">代表场景：Athena 7 步 campaign autopilot · competitive_intel · creator_performance</div>
+      </div>
+    </div>
+    <div class="layer p">
+      <div class="name">Prefect<span class="role">批量 pipeline · 数据加工</span></div>
+      <div class="desc">
+        离线/夜间批处理的"工厂"。flow run 跑爬虫、入库、聚合、生成日报。<strong>worker pool</strong> 模型 —— 任务被分发到不同 worker 上跑，可以横向扩。<strong>失败有重试、有观测后台</strong>。
+        <div class="why">代表场景：达人采集 pipeline · 视频索引 · reflection_agent · IM 群日报聚合</div>
+      </div>
+    </div>
+    <div class="layer c">
+      <div class="name">cron<span class="role">宿主小活 · 简单粗暴</span></div>
+      <div class="desc">
+        EC2 宿主机自己的 crontab + 一个 Python 脚本。没有 worker、没有状态、没有 UI —— 但<strong>极其简单可靠</strong>，<strong>不依赖任何调度服务</strong>。Hatchet/Prefect 全挂了它也照跑。
+        <div class="why">代表场景：amy_cost_daily_report · collect_token_usage · 各种"每天发一张卡片"的脚本</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>心智模型：</strong> Hatchet = "在对话流里挂起，等人，再继续"；Prefect = "大批量数据夜里入库，跑完发报告"；cron = "9 点准时给老板发花费报告"。三件事都叫"调度"，但要的能力完全不同。
+  </div>
+
+  <h2 class="section"><span class="num">2</span>能力矩阵 · 三层都能干什么</h2>
+
+  <p>把"任务调度"拆成 8 个具体能力，看看每层各自的强弱：</p>
+
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>能力维度</th>
+        <th>Hatchet</th>
+        <th>Prefect</th>
+        <th>cron</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>状态持久化</strong></td>
+        <td class="ok">每 await 都 checkpoint</td>
+        <td class="ok">flow run 级别记录</td>
+        <td class="bad">无 · 脚本死了就死了</td>
+      </tr>
+      <tr>
+        <td><strong>跨进程 resume</strong></td>
+        <td class="ok">worker 换了能续</td>
+        <td class="bad">flow 重启即重跑</td>
+        <td class="bad">无概念</td>
+      </tr>
+      <tr>
+        <td><strong>等待外部事件</strong></td>
+        <td class="ok">aio_wait_for_event<br>(CEL filter, 跨重启)</td>
+        <td class="bad">不支持<br>(只能 poll)</td>
+        <td class="bad">不支持</td>
+      </tr>
+      <tr>
+        <td><strong>定时触发</strong></td>
+        <td>有 schedule，但少用</td>
+        <td class="ok">deployment 自带 cron 调度</td>
+        <td class="ok">crontab 原生</td>
+      </tr>
+      <tr>
+        <td><strong>worker 池横向扩展</strong></td>
+        <td>支持但单 worker 够用</td>
+        <td class="ok">主打能力 (work pool)</td>
+        <td class="bad">单机一份</td>
+      </tr>
+      <tr>
+        <td><strong>失败重试</strong></td>
+        <td class="ok">max_retries 参数</td>
+        <td class="ok">retry policy</td>
+        <td class="bad">脚本自己写</td>
+      </tr>
+      <tr>
+        <td><strong>观测 UI</strong></td>
+        <td class="ok">Hatchet 后台</td>
+        <td class="ok">Prefect Cloud / Server</td>
+        <td class="bad">看 stdout / 日志文件</td>
+      </tr>
+      <tr>
+        <td><strong>部署成本</strong></td>
+        <td>需要 Hatchet server</td>
+        <td>需要 Prefect server + worker</td>
+        <td class="ok">零额外组件</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>关键观察：</strong> cron 在很多维度都"输"，但它的强项是<strong>不依赖任何外部组件</strong> —— Hatchet 挂了它照跑、Prefect server 重启它不知道。这种"调度独立性"在"必须送达"的报告类任务上反而是优势。
+  </div>
+
+  <h2 class="section"><span class="num">3</span>Hatchet 这一层 · 为什么 agent 业务流非它不可</h2>
+
+  <p>Hatchet 不是普通后台 task，是<strong>"durable workflow engine"</strong>。它的核心承诺：<strong>workflow 状态由 server 端持有，worker 只是"执行肌肉"，可以随时换</strong>。在 agent 场景里这个承诺有几个具体含义：</p>
+
+  <div class="stripe">
+    <div class="si">
+      <div class="sname">execution_timeout = 60m</div>
+      <div class="sdesc">一个 task 可以名正言顺跑 60 分钟。LLM 慢 + 工具调用 + 等人都算在内，不被中间件杀掉。</div>
+    </div>
+    <div class="si">
+      <div class="sname">DurableContext</div>
+      <div class="sdesc">不是普通 Python context —— 每次 await 时把当前 frame 状态序列化到 server。worker 换了能在原 await 处恢复。</div>
+    </div>
+    <div class="si">
+      <div class="sname">aio_wait_for_event</div>
+      <div class="sdesc">workflow 主动"挂起等事件"。worker 完全空闲，不像普通 asyncio coroutine 那样占内存。</div>
+    </div>
+    <div class="si">
+      <div class="sname">固定 event type + CEL filter</div>
+      <div class="sdesc">"踩坑笔记"：不能用动态 event key（重启后 server 没注册会丢消息）。固定 type 在 server 端永远 "known"，CEL 服务端筛 run_id。</div>
+    </div>
+  </div>
+
+  <p>把"用户点 IM 按钮"建模成"workflow 等一个 event"，是 Hatchet 这层最值钱的能力。换成 Prefect 或 cron 都做不到 —— 它们没有"挂起等远程事件"这个原语。</p>
+
+  <div class="callout good">
+    <strong>判断准则：</strong> 任务里只要有"等人/等回调，可能等几小时甚至跨天"这种环节，就必须放 Hatchet。这是它唯一能干别人干不了的事。
+  </div>
+
+  <h2 class="section"><span class="num">4</span>Prefect 这一层 · pipeline 的"工厂车间"</h2>
+
+  <p>Prefect 的强项是<strong>把"批量数据加工"切成 flow → tasks，分发到 worker pool 上跑，带观测和重试</strong>。具体形态：</p>
+
+  <table class="matrix">
+    <thead>
+      <tr>
+        <th>组件</th>
+        <th>角色</th>
+        <th>类比</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>flow</strong></td><td>一个 pipeline 的入口函数</td><td>"流程图本身"</td></tr>
+      <tr><td><strong>task</strong></td><td>flow 里的一个步骤</td><td>"流程图里一个方块"</td></tr>
+      <tr><td><strong>deployment</strong></td><td>flow 在哪个 worker pool 上、什么时间跑</td><td>"派工单 + 排班表"</td></tr>
+      <tr><td><strong>work pool</strong></td><td>一组 worker 共享一个名字，flow 进池子分发</td><td>"车间"</td></tr>
+      <tr><td><strong>worker</strong></td><td>实际拉起 flow 跑的进程</td><td>"车间里的工人"</td></tr>
+    </tbody>
+  </table>
+
+  <p>在 agent 平台里，Prefect 主要承担：</p>
+
+  <div class="stripe">
+    <div class="si">
+      <div class="sname">达人/视频采集</div>
+      <div class="sdesc">夜里跑外部爬虫 → 入库到内部 creator pool。一次几万条，分批 task。</div>
+    </div>
+    <div class="si">
+      <div class="sname">video_index DAG</div>
+      <div class="sdesc">视频内容理解 pipeline，对接 OCR / 转写 / 标签生成。失败重试在 Prefect 层。</div>
+    </div>
+    <div class="si">
+      <div class="sname">reflection_agent</div>
+      <div class="sdesc">把 agent 跑过的会话做反思总结、写回 memory。批量离线跑。</div>
+    </div>
+    <div class="si">
+      <div class="sname">日报聚合</div>
+      <div class="sdesc">汇总各 agent 的 token 用量、cost、调用次数，生成 IM 卡片。</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>判断准则：</strong> 任务"不依赖人交互，但要批量跑 + 横向扩 + 有观测"，进 Prefect。它的 work pool 模型让"加机器就能加吞吐"成立。
+  </div>
+
+  <h2 class="section"><span class="num">5</span>cron 这一层 · 看似最土，但最不会挂</h2>
+
+  <p>cron 是宿主机自己的 crontab 加一个 Python 脚本。<strong>没有 server、没有 worker、没有 UI</strong>。看起来很原始，但有一类任务它最合适：</p>
+
+  <div class="compare">
+    <div class="cside c">
+      <div class="ctitle">✓ cron 适合什么</div>
+      <ul>
+        <li><strong>每天定时发一份必须送达的报告</strong>（花费、活跃、健康检查）</li>
+        <li><strong>任务逻辑极简单</strong> —— 几十行 Python，没分支</li>
+        <li><strong>调度独立性要求高</strong> —— Hatchet/Prefect 都挂了它也要送达</li>
+        <li><strong>跑在容器/服务的同一台 EC2</strong>，能直接读容器环境</li>
+        <li><strong>失败了发个 IM 告警就够</strong>，不需要复杂的重试</li>
+      </ul>
+    </div>
+    <div class="cside h">
+      <div class="ctitle">✗ cron 不适合什么</div>
+      <ul>
+        <li>任务要跑 &gt; 10 分钟（cron 没好用的超时控制）</li>
+        <li>逻辑要分支 + 等人 + 多 step</li>
+        <li>需要观测 UI / 历史回放</li>
+        <li>需要横向扩到多机</li>
+        <li>失败了要自动重试 N 次</li>
+      </ul>
+    </div>
+  </div>
+
+  <p>实际部署形态：脚本放在 EC2 的 <code>/opt/&lt;product&gt;/scripts/</code> 下，由仓库的 GitHub Action 自动 rsync 同步过去。crontab 写一行 <code>0 9 * * * python /opt/.../daily_report.py</code>。<strong>典型代表：每日 API cost 报告、token 用量汇总、容器健康检查。</strong></p>
+
+  <div class="callout warn">
+    <strong>容易踩坑：</strong> 新加 cron 脚本时，<strong>必须同步登记到 CI 部署 workflow 的白名单</strong>，否则下次 deploy 不会同步过去。这条很容易忘 —— 因为 cron 没有"中心化部署"概念，全靠仓库 → 宿主的 sync。
+  </div>
+
+  <h2 class="section"><span class="num">6</span>一个任务该放哪层 · 决策树</h2>
+
+  <p>给一个新任务做层选择，按下面顺序问 3 个问题就够：</p>
+
+  <div class="tree">
+<span class="q">Q1.</span> 任务里有"等人交互/等远程回调，可能挂起几小时甚至跨天"吗？<br>
+&nbsp;&nbsp;├─ <span class="y">是</span> →&nbsp;&nbsp;<span class="pick h">Hatchet</span> 没得选<br>
+&nbsp;&nbsp;└─ <span class="n">否</span> → 继续问 Q2<br><br>
+<span class="q">Q2.</span> 任务需要"批量分发、横向扩 worker、观测后台、失败重试"吗？<br>
+&nbsp;&nbsp;├─ <span class="y">是</span> →&nbsp;&nbsp;<span class="pick p">Prefect</span> 主场<br>
+&nbsp;&nbsp;└─ <span class="n">否</span> → 继续问 Q3<br><br>
+<span class="q">Q3.</span> 任务是"每天定时发个简单报告 / 跑个简单脚本"，且必须送达？<br>
+&nbsp;&nbsp;├─ <span class="y">是</span> →&nbsp;&nbsp;<span class="pick c">cron</span> 最稳<br>
+&nbsp;&nbsp;└─ <span class="n">否</span> → 重新看任务 spec，可能是错的问题
+  </div>
+
+  <div class="callout good">
+    <strong>反例提醒：</strong> "好像 Prefect 也能做日报" —— 能做，但带来一个隐患：Prefect server 挂了或 worker pool 路由错了，日报就没了。日报这类"必须每天送达"的任务，挂在 cron 上比挂在 Prefect 上<strong>少一层依赖、少一种失败模式</strong>。下面第 7 节就是一个真实事故。
+  </div>
+
+  <h2 class="section"><span class="num">7</span>真实事故 · 路由错 worker，日报全丢</h2>
+
+  <p>把决策树落到一个真实案例上 —— 一个"看起来 Prefect 合适、实则掉链子"的故事：</p>
+
+  <div class="incident">
+    <div class="ilabel">事故 · skill-usage-daily-report 静默丢失</div>
+    <h3>一份每日技能使用报告，连续几天没到 IM 群</h3>
+    <div class="iflow"><div class="ikey">表象</div><div>"昨天的日报没收到 · 没报错 · Prefect UI 显示 run success"</div></div>
+    <div class="iflow"><div class="ikey">环境</div><div>有两个 Prefect work pool：<code>ec2-worker-v2</code>（自家 EC2）和 <code>my-ec2-pool</code>（云上托管）</div></div>
+    <div class="iflow"><div class="ikey">现象</div><div>近期 daily-report 的 flow run 100% 落在云上 worker；云 worker 发 IM interactive-card 100% 失败；EC2 worker 100% 成功</div></div>
+    <div class="iflow"><div class="ikey">根因</div><div>云上残留一个旧 <code>ProcessWorker</code>，<strong>它能拉到任务、能跑、但所在网络出口 POST IM 卡片端点失败</strong> —— 而 flow 代码把 IM POST 失败吞掉只 log warning，Prefect 角度看 "task succeeded"</div></div>
+    <div class="iflow"><div class="ikey">为何静默</div><div>Prefect 失败重试只保护"task 抛异常"，对"业务上失败但返回 success" 无能为力</div></div>
+    <div class="lesson">
+      <strong>启示一：</strong> Prefect 的"成功"是 task 函数没抛异常，不是业务真送达。<br>
+      <strong>启示二：</strong> 多个 worker pool 共用一个 flow，<strong>路由是隐藏失败面</strong> —— 同一份代码在不同 pool 上行为不一样，UI 看不出来。<br>
+      <strong>启示三：</strong> "必须送达"的报告，挂 cron 反而<strong>少一层路由不确定性</strong>。如果非 Prefect 不可，也要在 flow 末尾做"送达验证 + 失败 raise"，否则它会骗你。
+    </div>
+  </div>
+
+  <h2 class="section"><span class="num">8</span>三层协作 · 一个真实场景的全链路</h2>
+
+  <p>看一次"早 9 点的 campaign 复盘"是怎么三层接力跑完的：</p>
+
+  <div class="timeline">
+    <div class="tstep c">
+      <div class="time">08:55</div>
+      <div class="dot"></div>
+      <div class="body"><strong>cron · 触发拉取前置数据</strong><div class="h">EC2 crontab 跑一个 bootstrap 脚本：检查昨日 campaign 是否已结算 → 写一个 marker 文件</div></div>
+    </div>
+    <div class="tstep p">
+      <div class="time">09:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Prefect · 批量入库</strong><div class="h">deployment 触发达人数据 flow，10 个 task 并发拉外部接口，入 creator pool 表，失败重试 3 次</div></div>
+    </div>
+    <div class="tstep p">
+      <div class="time">09:08</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Prefect · 视频索引补齐</strong><div class="h">video_index flow 把昨天 campaign 涉及视频做转写 + 打标，结果写回 metadata 表</div></div>
+    </div>
+    <div class="tstep h">
+      <div class="time">09:15</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Hatchet · Athena autopilot 启动</strong><div class="h">campaign-autopilot durable task 启动，开始跑 7 步流程，前两步是数据汇总</div></div>
+    </div>
+    <div class="tstep user">
+      <div class="time">09:35</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 3 · 等运营点确认</strong><div class="h">underperformer 名单生成 → 发 IM 卡片 → workflow 调 aio_wait_for_event 挂起</div></div>
+    </div>
+    <div class="tstep crash">
+      <div class="time">10:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>容器部署新版本</strong><div class="h">worker 被替换。Hatchet server 不动，workflow 状态安全。worker B 在 10:01 接管</div></div>
+    </div>
+    <div class="tstep user">
+      <div class="time">11:20</div>
+      <div class="dot"></div>
+      <div class="body"><strong>运营点 confirm</strong><div class="h">IM button callback → POST event 到 Hatchet → CEL filter 匹配 run_id → workflow resume Step 4</div></div>
+    </div>
+    <div class="tstep h">
+      <div class="time">11:35</div>
+      <div class="dot"></div>
+      <div class="body"><strong>Step 4-7 顺序跑完</strong><div class="h">budget 调整 + reflection 写回 memory + 生成 Daily Report 卡片推送</div></div>
+    </div>
+    <div class="tstep c">
+      <div class="time">18:00</div>
+      <div class="dot"></div>
+      <div class="body"><strong>cron · 当日花费报告</strong><div class="h">EC2 上独立脚本聚合当日所有 agent 的 API cost，推送到老板群 —— 跟前面 Prefect/Hatchet 一切无关</div></div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>仔细看时间线：</strong> 三层不是上下调用，是<strong>各自管自己性格匹配的环节</strong> —— Prefect 管"批量数据备好"、Hatchet 管"agent 主流程 + 等人"、cron 管"准点送达的简报"。哪层挂了，其他两层照常工作 —— 这就是分层的工程价值。
+  </div>
+
+  <h2 class="section"><span class="num">9</span>一张图收尾 · 任务流过三层的肌肉</h2>
+
+  <div class="stack">
+    <div class="stack-row user">
+      <div class="lbl">用户 / 运营 / 老板</div>
+      <div class="sub">在 IM 群里发消息、点按钮、收报告</div>
+    </div>
+    <div class="stack-arrow">↓</div>
+    <div class="stack-row h">
+      <div class="lbl">Hatchet · 长事务 + 等事件 · 不丢</div>
+      <div class="sub">Athena autopilot · 30-60min · durable checkpoint · aio_wait_for_event(CEL filter)</div>
+    </div>
+    <div class="stack-arrow">↓</div>
+    <div class="stack-row p">
+      <div class="lbl">Prefect · 批量 pipeline · 横向扩</div>
+      <div class="sub">creator pool 入库 · video_index · reflection · 日报聚合 (work pool 模型)</div>
+    </div>
+    <div class="stack-arrow">↓</div>
+    <div class="stack-row c">
+      <div class="lbl">cron · 宿主小活 · 调度独立</div>
+      <div class="sub">每日 cost / token 用量 / 健康检查 · /opt/&lt;product&gt;/scripts/ · 没有 server 依赖</div>
+    </div>
+  </div>
+
+  <p style="color:var(--muted);font-size:13px;line-height:1.7;margin-top:18px">
+    <strong style="color:var(--text)">最后一句话：</strong> 调度器不是越强越好。每多用一个"全能调度器"做它不擅长的事，<strong style="color:var(--text)">就多一个静默失败的可能</strong>。三层并存的代价是工程师要懂三套东西，但收益是 —— 每个任务都跑在自己性格匹配的肌肉上，挂一层的时候其他两层还在跑。
+  </p>
+
+  <div class="footer">
+    visualizations / 2026-05-16 · 三层调度撑起后台 agent · 功能视角 · 不堆代码细节
+  </div>
+
+</div>
+
+</body>
+</html>
